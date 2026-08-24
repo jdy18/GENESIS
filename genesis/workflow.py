@@ -235,7 +235,13 @@ async def diagnose(
         # ── 5. the proposing model revises against the audit ──
         before = set(seen)
         candidates = await engine.revise(
-            models.reasoner, text, phenotypes, candidates, report, cfg.k
+            models.reasoner,
+            text,
+            phenotypes,
+            candidates,
+            report,
+            evidence=evidence,
+            k=cfg.k,
         )
         # Only the newly introduced candidates need retrieval; the rest already
         # have evidence, and consensus re-reads the whole set anyway.

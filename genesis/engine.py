@@ -12,7 +12,7 @@ import json
 
 from .llm.base import ChatModel, parse_json
 from .prompts import INITIAL_DIFFERENTIAL, REVISED_DIFFERENTIAL
-from .types import AuditReport, Candidate, Phenotype
+from .types import AuditReport, Candidate, Evidence, Phenotype
 
 
 async def propose(
@@ -48,17 +48,44 @@ async def revise(
     phenotypes: list[Phenotype],
     previous: list[Candidate],
     report: AuditReport,
+    evidence: list[Evidence] | None = None,
     k: int = 5,
     max_tokens: int = 4096,
 ) -> list[Candidate]:
-    """Revised differential: the same case, plus the audit. Strictly additive."""
+    """Revised differential: the same case, plus everything the agents gathered.
+
+    This is the step where the model that proposed the differential gets to see
+    what the evidence pathways found. It receives the retrieved records
+    themselves, not only the audit's account of them — the audit names what is
+    missing, while the records are what a new candidate would be reasoned from.
+    """
+    by_cand: dict[str, list[Evidence]] = {}
+    for ev in evidence or []:
+        by_cand.setdefault(ev.candidate_key, []).append(ev)
+
     user = json.dumps(
         {
             "clinical_text": text,
             "findings_present": [p.name for p in phenotypes if p.present],
             "findings_absent": [p.name for p in phenotypes if not p.present],
             "previous_differential": [
-                {"rank": c.rank, "name": c.name, "rationale": c.rationale}
+                {
+                    "rank": c.rank,
+                    "name": c.name,
+                    "rationale": c.rationale,
+                    "supporting_findings": c.supporting_findings,
+                    "contradictory_findings": c.contradictory_findings,
+                    "unresolved_questions": c.unresolved_questions,
+                    "evidence": [
+                        {
+                            "pathway": e.kind.value,
+                            "stance": e.stance.value,
+                            "source": e.source,
+                            "record": e.text(),
+                        }
+                        for e in by_cand.get(c.key(), [])
+                    ],
+                }
                 for c in sorted(previous, key=lambda c: c.rank)
             ],
             "audit_report": {
@@ -66,7 +93,8 @@ async def revise(
                 "conflicting_findings": report.conflicting_findings,
                 "evidence_gaps": report.evidence_gaps,
                 "alternatives_proposed": [
-                    c.name for c in report.proposed_alternatives
+                    {"name": c.name, "rationale": c.rationale}
+                    for c in report.proposed_alternatives
                 ],
                 "assessment": report.reasoning,
             },

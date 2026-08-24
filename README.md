@@ -41,7 +41,9 @@ seven small interfaces.
                               └──────────────┬───────────────┘
                                              ▼
                               ┌──────────────────────────────┐
-                              │ 5. revise the differential   │
+                              │ 5. the proposing model sees   │
+                              │    the evidence and reworks   │
+                              │    the candidate set          │
                               └──────────────┬───────────────┘
                                              │
                                    back to 2 ┘
@@ -71,9 +73,13 @@ always reflects the evidence rather than only the initial proposal.
 candidate as *consensus*, *contested* or *emerged*, then names what is missing:
 unsupported claims, conflicting findings, evidence gaps, proposed alternatives.
 
-**5. Revise.** The reasoning model reworks the differential against the audit.
-Newly introduced candidates go back through retrieval, at greater depth; the rest
-already have evidence. At most three rounds.
+**5. Revise.** The same model that proposed the differential is given the case
+again, its own previous candidates, the records each of them accumulated across
+the three pathways, and the audit report. It may keep, drop, reorder or introduce
+candidates. Whatever it introduces goes back through retrieval at greater depth
+— three queries per candidate instead of one, ten records per source instead of
+three — while candidates that already have evidence are not re-queried. At most
+three rounds.
 
 Every stage receives the full case text, with retrieved evidence added alongside
 it.
@@ -160,32 +166,17 @@ English narrative with laboratory and histology detail, a pre-extracted phenotyp
 list with pertinent negatives, and a Chinese narrative whose decisive clues live
 in the prose. See `minimal_dataset/README.md`.
 
-## Layout
-
-```text
-genesis/
-  workflow.py          orchestration, up to three rounds
-  engine.py            proposes and revises the differential
-  prompts.py           every prompt, in one place
-  types.py             Candidate, Evidence, AuditReport, DiagnosisResult
-  agents/
-    consensus.py       2.1  agreement across independent methods
-    knowledge.py       2.2  per-candidate retrieval, three axes
-    analogy.py         2.3  historical cases, same-entity checked
-    fusion.py          3    evidence → ranked answer
-    audit.py           4    classification and consistency criterion
-  tools/base.py        the six tool protocols
-  llm/
-    base.py            ChatModel protocol and JSON coercion
-    openai_compat.py   binding for OpenAI-compatible servers
-examples/
-  minimal.py           control flow against in-memory stubs
-  run_dataset.py       minimal_dataset with file-backed tools
-minimal_dataset/
-  cases/               three cases
-  indices/             knowledge, historical cases, expert rankings
-```
-
 ## Licence
 
-Apache 2.0
+Apache License 2.0 — see [LICENSE](LICENSE).
+
+The licence covers the code in this repository: the workflow, the agents, the
+prompts and the examples. It does not extend to anything you connect through the
+tool protocols. Model weights, ontology snapshots, literature corpora and case
+collections each carry their own terms, and several of the resources this kind of
+system is usually built on are redistributable only under conditions of their
+own. Check the terms of each before deploying.
+
+`minimal_dataset/` is released under the same licence as the code. The cases were
+written for this repository and are not derived from patient records; the index
+entries are short original summaries rather than reproduced source text.

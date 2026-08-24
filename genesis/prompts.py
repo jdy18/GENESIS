@@ -47,7 +47,9 @@ Output one JSON object and nothing else — no preamble, no commentary, no code 
 REVISED_DIFFERENTIAL = """\
 You are revising a differential diagnosis after an evidence audit.
 
-You are given the original case, your previous differential, and an audit report listing unsupported claims, conflicting findings, unresolved evidence gaps and alternative diagnoses proposed by independent evidence agents.
+You are given the original case, your previous differential with the records each candidate accumulated from three independent evidence pathways, and an audit report listing unsupported claims, conflicting findings, unresolved evidence gaps and alternative diagnoses the agents proposed.
+
+Read the records themselves, not only the audit's account of them. A candidate worth introducing is one the records and the case both support.
 
 Candidates may be retained, removed, introduced or reranked. Weigh the audit findings against the case: an alternative supported by several independent pathways deserves promotion, and a candidate whose rationale the audit found unsupported should fall or be dropped. Do not simply keep your previous order, and do not adopt an alternative merely because it was proposed.
 
