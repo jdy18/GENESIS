@@ -15,7 +15,7 @@ from enum import Enum
 from typing import Any
 
 
-# ── Phenotype ────────────────────────────────────────────────────────────────
+# ── Phenotype ──
 
 @dataclass
 class Phenotype:
@@ -24,17 +24,19 @@ class Phenotype:
     `term_id` is optional — a finding that could not be grounded in an ontology
     is still a finding, and dropping it loses information the case stated.
     """
+
     name: str
     term_id: str | None = None          # e.g. "HP:0001250"
     present: bool = True                # False => pertinent negative
     source_span: str | None = None       # verbatim text this came from
 
 
-# ── Candidate diagnosis ──────────────────────────────────────────────────────
+# ── Candidate diagnosis ──
 
 @dataclass
 class Candidate:
     """A candidate diagnosis and the reasoning attached to it."""
+
     name: str
     rank: int
     supporting_findings: list[str] = field(default_factory=list)
@@ -63,10 +65,11 @@ class Candidate:
         return self.name.strip().casefold()
 
 
-# ── Evidence ─────────────────────────────────────────────────────────────────
+# ── Evidence ──
 
 class EvidenceKind(str, Enum):
     """Which of the three pathways produced a record."""
+
     CONSENSUS = "consensus"
     KNOWLEDGE = "knowledge"
     ANALOGY = "analogy"
@@ -79,6 +82,7 @@ class Stance(str, Enum):
     reconciled with a candidate's rationale, which requires refuting records to
     be labelled rather than pooled with supporting ones.
     """
+
     SUPPORTS = "supports"
     REFUTES = "refutes"
     NEUTRAL = "neutral"
@@ -97,6 +101,7 @@ class Evidence:
     condensation step is both a latency cost and a place for the model to invent
     a disease name that was not in the source. Prefer passing `content`.
     """
+
     candidate_key: str
     kind: EvidenceKind
     stance: Stance
@@ -115,6 +120,7 @@ class Evidence:
 @dataclass
 class AgentReport:
     """What one evidence agent returns for the whole candidate set."""
+
     kind: EvidenceKind
     evidence: list[Evidence] = field(default_factory=list)
     # Credible alternatives absent from the working differential. The consensus
@@ -128,6 +134,7 @@ class AgentReport:
 @dataclass
 class Reference:
     """A cited source in the final answer."""
+
     id: str                              # citation marker, e.g. "[1]"
     type: str = ""                       # guideline / case report / article / tool
     description: str = ""
@@ -137,16 +144,18 @@ class Reference:
 @dataclass
 class FusionResult:
     """What the fusion agent returns: the answer, plus whether to reflect."""
+
     candidates: list[Candidate]
     references: list[Reference] = field(default_factory=list)
     reflection_needed: bool = False
     reflection_reason: str = ""
 
 
-# ── Audit ────────────────────────────────────────────────────────────────────
+# ── Audit ──
 
 class CandidateStatus(str, Enum):
     """Classification applied during evidence integration."""
+
     CONSENSUS = "consensus"
     CONTESTED = "contested"
     EMERGED = "emerged"
@@ -159,6 +168,7 @@ class AuditReport:
     `consistent=False` triggers another revision cycle; the fields below are
     what the reasoning engine is given to revise against.
     """
+
     consistent: bool
     status: dict[str, CandidateStatus] = field(default_factory=dict)
     unsupported_claims: list[str] = field(default_factory=list)
@@ -168,11 +178,12 @@ class AuditReport:
     reasoning: str = ""
 
 
-# ── Final result ─────────────────────────────────────────────────────────────
+# ── Final result ──
 
 @dataclass
 class CycleTrace:
     """One pass of evidence collection + audit, kept for the provenance chain."""
+
     index: int
     candidates: list[Candidate]
     reports: list[AgentReport]
@@ -185,6 +196,7 @@ class DiagnosisResult:
     """Final output: ranked differential, per-candidate reasoning, evidence,
     provenance, and whether the consistency criterion was met.
     """
+
     candidates: list[Candidate]
     evidence: list[Evidence]
     consistency_met: bool
@@ -210,7 +222,8 @@ class DiagnosisResult:
         last = self.cycles[-1].audit if self.cycles else None
         status = last.status if last else {}
         by_status: dict[str, list[str]] = {
-            "consensus_diagnoses": [], "contested_diagnoses": [],
+            "consensus_diagnoses": [],
+            "contested_diagnoses": [],
             "newly_emerged_diagnoses": [],
         }
         keyed = {c.key(): c for c in self.candidates}
@@ -218,24 +231,41 @@ class DiagnosisResult:
             cand = keyed.get(key)
             if not cand:
                 continue
-            bucket = {"consensus": "consensus_diagnoses",
-                      "contested": "contested_diagnoses",
-                      "emerged": "newly_emerged_diagnoses"}[st.value]
+            bucket = {
+                "consensus": "consensus_diagnoses",
+                "contested": "contested_diagnoses",
+                "emerged": "newly_emerged_diagnoses",
+            }[st.value]
             by_status[bucket].append(cand.name)
         return {
             "evidence_cross_validation": by_status,
             "q1_diagnoses": [
-                {"name": c.name, "rarity": c.rarity, "confidence": c.confidence,
-                 "reasoning": c.rationale, "exams": c.exams}
+                {
+                    "name": c.name,
+                    "rarity": c.rarity,
+                    "confidence": c.confidence,
+                    "reasoning": c.rationale,
+                    "exams": c.exams,
+                }
                 for c in sorted(self.candidates, key=lambda c: c.rank)
             ],
             "references": [
-                {"id": r.id, "type": r.type, "description": r.description,
-                 "source": r.source}
+                {
+                    "id": r.id,
+                    "type": r.type,
+                    "description": r.description,
+                    "source": r.source,
+                }
                 for r in self.references
             ],
             "reflection_needed": not self.consistency_met,
-            "reflection_reason": "" if self.consistency_met else (
-                "; ".join((last.evidence_gaps + last.conflicting_findings)[:3])
-                if last else ""),
+            "reflection_reason": (
+                ""
+                if self.consistency_met
+                else (
+                    "; ".join((last.evidence_gaps + last.conflicting_findings)[:3])
+                    if last
+                    else ""
+                )
+            ),
         }

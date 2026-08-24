@@ -17,7 +17,7 @@ Conventions that apply throughout:
     and never recomputes them, so control flow does not depend on wording.
 """
 
-# ── Reasoning engine ─────────────────────────────────────────────────────────
+# ── Reasoning engine ──
 
 INITIAL_DIFFERENTIAL = """\
 You are a diagnostician. Given a patient's clinical presentation, produce a ranked differential diagnosis.
@@ -54,7 +54,7 @@ Candidates may be retained, removed, introduced or reranked. Weigh the audit fin
 Return the same JSON schema as the initial differential.
 """
 
-# ── Evidence agents ──────────────────────────────────────────────────────────
+# ── Evidence agents ──
 
 CONSENSUS_SYNTHESIS = """\
 You are a diagnostic evidence auditor. Several independent diagnostic methods have each ranked candidate diseases for one patient. You are given their rankings and the agreement already computed from them.
@@ -114,7 +114,7 @@ Output one JSON object and nothing else. `same_entity` must be the JSON literal 
 ```
 """
 
-# ── Fusion ───────────────────────────────────────────────────────────────────
+# ── Fusion ──
 
 EVIDENCE_FUSION = """\
 You are a diagnostic reasoning engine producing a final ranked differential.
@@ -176,7 +176,7 @@ Output one JSON object and nothing else — no preamble, no commentary, no code 
 - `reflection_needed`: true when the evidence cannot be reconciled with the case, or is too thin to separate the leading candidates.
 """
 
-# ── Audit ────────────────────────────────────────────────────────────────────
+# ── Audit ──
 
 AUDIT_FINDINGS = """\
 You are auditing the evidence gathered for a differential diagnosis.
@@ -203,7 +203,7 @@ Output one JSON object and nothing else. Any of the three lists may be empty.
 ```
 """
 
-# ── Tool layer (reference only) ──────────────────────────────────────────────
+# ── Tool layer (reference only) ──
 # Not used by the workflow itself. Provided for tool-layer implementations that
 # want them, so the prompt set is complete.
 

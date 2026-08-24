@@ -1,0 +1,37 @@
+{
+  "case_001": {
+    "phenotype-ranker": [
+      "Mitochondrial myopathy",
+      "MELAS syndrome",
+      "Kearns-Sayre syndrome",
+      "Myasthenia gravis"
+    ],
+    "case-matcher": [
+      "MELAS syndrome",
+      "Mitochondrial myopathy",
+      "Chronic progressive external ophthalmoplegia"
+    ]
+  },
+  "case_002": {
+    "phenotype-ranker": [
+      "Mucopolysaccharidosis type I, Scheie form",
+      "Mucopolysaccharidosis type VI",
+      "Mucolipidosis III"
+    ],
+    "case-matcher": [
+      "Mucopolysaccharidosis type I, Scheie form",
+      "Mucopolysaccharidosis type II"
+    ]
+  },
+  "case_003": {
+    "phenotype-ranker": [
+      "急性间歇性卟啉病",
+      "铅中毒",
+      "家族性地中海热"
+    ],
+    "case-matcher": [
+      "急性间歇性卟啉病",
+      "遗传性共卟啉病"
+    ]
+  }
+}

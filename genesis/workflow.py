@@ -1,4 +1,4 @@
-"""MedUnion-Agent orchestration.
+"""GENESIS orchestration.
 
 The whole scheme, in the order it runs:
 
@@ -38,13 +38,27 @@ from . import engine
 from .agents import analogy, audit as audit_mod, consensus, fusion, knowledge
 from .agents.knowledge import RetrievalBudget
 from .llm.base import ChatModel
-from .tools.base import (CaseIndex, ConceptNormalizer, EvidenceSummarizer,
-                         ExpertMethod, KnowledgeSource, PhenotypeExtractor)
-from .types import (AgentReport, AuditReport, Candidate, CycleTrace,
-                    DiagnosisResult, Evidence, EvidenceKind, Phenotype,
-                    Reference)
+from .tools.base import (
+    CaseIndex,
+    ConceptNormalizer,
+    EvidenceSummarizer,
+    ExpertMethod,
+    KnowledgeSource,
+    PhenotypeExtractor,
+)
+from .types import (
+    AgentReport,
+    AuditReport,
+    Candidate,
+    CycleTrace,
+    DiagnosisResult,
+    Evidence,
+    EvidenceKind,
+    Phenotype,
+    Reference,
+)
 
-log = logging.getLogger("medunion_agent")
+log = logging.getLogger("genesis")
 
 # "at most three consecutive reflection rounds" — one initial evidence pass plus
 # up to three revisions.
@@ -59,6 +73,7 @@ class Tools:
     without a case corpus should still run with two evidence agents, and that
     degradation has to be visible in the trace instead of crashing the case.
     """
+
     phenotype_extractor: PhenotypeExtractor | None = None
     concept_normalizer: ConceptNormalizer | None = None
     expert_methods: list[ExpertMethod] = field(default_factory=list)
@@ -77,6 +92,7 @@ class Models:
     Whatever model extracts phenotypes or condenses retrieved records is not
     here — that belongs to the tool layer.
     """
+
     reasoner: ChatModel
     worker: ChatModel | None = None
 
@@ -87,7 +103,7 @@ class Models:
 
 @dataclass
 class Config:
-    k: int = 5                          # candidates in the differential
+    k: int = 5  # candidates in the differential
     max_rounds: int = MAX_REFLECTION_ROUNDS
     initial_budget: RetrievalBudget = field(default_factory=RetrievalBudget.initial)
     revision_budget: RetrievalBudget = field(default_factory=RetrievalBudget.revision)
@@ -101,8 +117,12 @@ class Config:
     use_reflection: bool = True
 
 
-async def diagnose(text: str, models: Models, tools: Tools | None = None,
-                   config: Config | None = None) -> DiagnosisResult:
+async def diagnose(
+    text: str,
+    models: Models,
+    tools: Tools | None = None,
+    config: Config | None = None,
+) -> DiagnosisResult:
     """Run the full workflow on one free-text case."""
     tools = tools or Tools()
     cfg = config or Config()
@@ -110,12 +130,16 @@ async def diagnose(text: str, models: Models, tools: Tools | None = None,
 
     phenotypes = await _extract(text, tools)
 
-    # ── 1. propose ───────────────────────────────────────────────────────────
+    # ── 1. propose ──
     candidates = await engine.propose(models.reasoner, text, phenotypes, cfg.k)
     if not candidates:
-        return DiagnosisResult(candidates=[], evidence=[], consistency_met=False,
-                               phenotypes=phenotypes,
-                               seconds=time.monotonic() - t0)
+        return DiagnosisResult(
+            candidates=[],
+            evidence=[],
+            consistency_met=False,
+            phenotypes=phenotypes,
+            seconds=time.monotonic() - t0,
+        )
 
     cycles: list[CycleTrace] = []
     evidence: list[Evidence] = []
@@ -129,7 +153,7 @@ async def diagnose(text: str, models: Models, tools: Tools | None = None,
     for round_i in range(cfg.max_rounds + 1):
         c0 = time.monotonic()
 
-        # ── 2. three evidence pathways, in parallel ──────────────────────────
+        # ── 2. three evidence pathways, in parallel ──
         reports = await _gather_evidence(
             candidates=candidates,
             examine=to_examine,
@@ -143,14 +167,25 @@ async def diagnose(text: str, models: Models, tools: Tools | None = None,
         for rep in reports:
             evidence.extend(rep.evidence)
 
-        proposed = [c for rep in reports for c in rep.new_candidates
-                    if c.key() not in seen]
+        proposed = [
+            c
+            for rep in reports
+            for c in rep.new_candidates
+            if c.key() not in seen
+        ]
 
-        # ── 3. fusion: the evidence becomes the answer ────────────────────────
+        # ── 3. fusion: the evidence becomes the answer ──
         # Every round, so the differential returned always reflects what was
         # retrieved. Fusion also says whether it could settle the case.
-        fused = await fusion.run(models.worker, text, phenotypes, candidates,
-                                 evidence, proposed=proposed, k=cfg.k)
+        fused = await fusion.run(
+            models.worker,
+            text,
+            phenotypes,
+            candidates,
+            evidence,
+            proposed=proposed,
+            k=cfg.k,
+        )
         candidates = fused.candidates
         references = fused.references or references
         # `seen` is deliberately not updated yet: the audit classifies a candidate
@@ -158,7 +193,7 @@ async def diagnose(text: str, models: Models, tools: Tools | None = None,
         # round, and folding the current set in first would make that check
         # always false.
 
-        # ── 4. audit: name what is missing, when fusion could not settle ─────
+        # ── 4. audit: name what is missing, when fusion could not settle ──
         # Skipped when fusion is satisfied: the audit exists to produce the
         # findings the engine revises against, and there is nothing to revise.
         report = _settled(fused)
@@ -173,12 +208,23 @@ async def diagnose(text: str, models: Models, tools: Tools | None = None,
                 discriminate_margin=cfg.discriminate_margin,
             )
 
-        cycles.append(CycleTrace(index=round_i, candidates=list(candidates),
-                                 reports=reports, audit=report,
-                                 seconds=time.monotonic() - c0))
+        cycles.append(
+            CycleTrace(
+                index=round_i,
+                candidates=list(candidates),
+                reports=reports,
+                audit=report,
+                seconds=time.monotonic() - c0,
+            )
+        )
         consistent = report.consistent
-        log.info("round %d: consistent=%s, %d candidates, %d evidence records",
-                 round_i, consistent, len(candidates), len(evidence))
+        log.info(
+            "round %d: consistent=%s, %d candidates, %d evidence records",
+            round_i,
+            consistent,
+            len(candidates),
+            len(evidence),
+        )
 
         if consistent or not cfg.use_reflection or round_i >= cfg.max_rounds:
             break
@@ -186,15 +232,16 @@ async def diagnose(text: str, models: Models, tools: Tools | None = None,
         # Everything on the differential now counts as known.
         seen |= {c.key() for c in candidates}
 
-        # ── 5. the proposing model revises against the audit ─────────────────
+        # ── 5. the proposing model revises against the audit ──
         before = set(seen)
-        candidates = await engine.revise(models.reasoner, text, phenotypes,
-                                         candidates, report, cfg.k)
+        candidates = await engine.revise(
+            models.reasoner, text, phenotypes, candidates, report, cfg.k
+        )
         # Only the newly introduced candidates need retrieval; the rest already
         # have evidence, and consensus re-reads the whole set anyway.
         to_examine = [c for c in candidates if c.key() not in before]
         seen |= {c.key() for c in candidates}
-        budget = cfg.revision_budget          # deeper retrieval from here on
+        budget = cfg.revision_budget  # deeper retrieval from here on
 
         if not to_examine:
             # Revision changed only the ordering. Re-querying the same
@@ -215,7 +262,7 @@ async def diagnose(text: str, models: Models, tools: Tools | None = None,
     )
 
 
-# ── internals ────────────────────────────────────────────────────────────────
+# ── internals ──
 
 async def _extract(text: str, tools: Tools) -> list[Phenotype]:
     if tools.phenotype_extractor is None:
@@ -229,11 +276,17 @@ async def _extract(text: str, tools: Tools) -> list[Phenotype]:
         return []
 
 
-async def _gather_evidence(*, candidates: list[Candidate],
-                           examine: list[Candidate],
-                           phenotypes: list[Phenotype], text: str,
-                           models: Models, tools: Tools, cfg: Config,
-                           budget: RetrievalBudget) -> list[AgentReport]:
+async def _gather_evidence(
+    *,
+    candidates: list[Candidate],
+    examine: list[Candidate],
+    phenotypes: list[Phenotype],
+    text: str,
+    models: Models,
+    tools: Tools,
+    cfg: Config,
+    budget: RetrievalBudget,
+) -> list[AgentReport]:
     """Run the enabled pathways concurrently.
 
     Consensus always sees the full differential — its job is to judge the
@@ -243,22 +296,50 @@ async def _gather_evidence(*, candidates: list[Candidate],
     jobs: list[tuple[str, asyncio.Future]] = []
 
     if cfg.use_consensus and tools.expert_methods:
-        jobs.append(("consensus", consensus.run(
-            candidates=candidates, phenotypes=phenotypes, text=text,
-            methods=tools.expert_methods, model=models.worker,
-            normalizer=tools.concept_normalizer)))
+        jobs.append(
+            (
+                "consensus",
+                consensus.run(
+                    candidates=candidates,
+                    phenotypes=phenotypes,
+                    text=text,
+                    methods=tools.expert_methods,
+                    model=models.worker,
+                    normalizer=tools.concept_normalizer,
+                ),
+            )
+        )
 
     if cfg.use_knowledge and tools.knowledge_sources and tools.summarizer:
-        jobs.append(("knowledge", knowledge.run(
-            candidates=examine, phenotypes=phenotypes,
-            sources=tools.knowledge_sources, model=models.worker,
-            summarizer=tools.summarizer, budget=budget, text=text)))
+        jobs.append(
+            (
+                "knowledge",
+                knowledge.run(
+                    candidates=examine,
+                    phenotypes=phenotypes,
+                    sources=tools.knowledge_sources,
+                    model=models.worker,
+                    summarizer=tools.summarizer,
+                    budget=budget,
+                    text=text,
+                ),
+            )
+        )
 
     if cfg.use_analogy and tools.case_indices:
-        jobs.append(("analogy", analogy.run(
-            candidates=examine, phenotypes=phenotypes, text=text,
-            indices=tools.case_indices, model=models.worker,
-            top_k=budget.records_per_source or cfg.analogy_top_k)))
+        jobs.append(
+            (
+                "analogy",
+                analogy.run(
+                    candidates=examine,
+                    phenotypes=phenotypes,
+                    text=text,
+                    indices=tools.case_indices,
+                    model=models.worker,
+                    top_k=budget.records_per_source or cfg.analogy_top_k,
+                ),
+            )
+        )
 
     if not jobs:
         return []
@@ -270,8 +351,13 @@ async def _gather_evidence(*, candidates: list[Candidate],
             log.warning("%s agent failed: %s", name, res)
             # Recorded, not swallowed: the audit distinguishes "no evidence
             # found" from "the pathway broke", and those mean different things.
-            out.append(AgentReport(kind=_KIND[name], failed=True,
-                                   error=f"{type(res).__name__}: {res}"))
+            out.append(
+                AgentReport(
+                    kind=_KIND[name],
+                    failed=True,
+                    error=f"{type(res).__name__}: {res}",
+                )
+            )
         else:
             out.append(res)
     return out

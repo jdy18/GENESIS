@@ -1,0 +1,45 @@
+[
+  {
+    "case_id": "REF001",
+    "diagnosis": "MELAS syndrome",
+    "summary": "28-year-old with recurrent headache and transient hemiparesis, resting lactate 3.8 mmol/L, ragged red fibres on biopsy, m.3243A>G confirmed. Maternal hearing loss.",
+    "shared_terms": [
+      "Elevated circulating lactate",
+      "Ragged red muscle fibres",
+      "Ptosis"
+    ],
+    "cross_encoder_score": 0.89
+  },
+  {
+    "case_id": "REF002",
+    "diagnosis": "Chronic progressive external ophthalmoplegia",
+    "summary": "45-year-old with bilateral ptosis and restricted eye movements, ragged red fibres present, no stroke-like episodes, lactate normal.",
+    "shared_terms": [
+      "Ptosis",
+      "Ragged red muscle fibres"
+    ],
+    "cross_encoder_score": 0.72
+  },
+  {
+    "case_id": "REF003",
+    "diagnosis": "Mucopolysaccharidosis type I, Scheie form",
+    "summary": "34-year-old with corneal clouding, carpal tunnel syndrome, joint stiffness and normal intellect; enzyme assay confirmed alpha-L-iduronidase deficiency.",
+    "shared_terms": [
+      "Corneal opacity",
+      "Joint stiffness",
+      "Short stature"
+    ],
+    "cross_encoder_score": 0.86
+  },
+  {
+    "case_id": "REF004",
+    "diagnosis": "Acute intermittent porphyria",
+    "summary": "38-year-old with three years of episodic abdominal pain, normal imaging, hyponatraemia during attacks, urine darkening on standing; urinary porphobilinogen markedly raised.",
+    "shared_terms": [
+      "Abdominal pain",
+      "Hyponatremia",
+      "Peripheral neuropathy"
+    ],
+    "cross_encoder_score": 0.94
+  }
+]

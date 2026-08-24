@@ -40,9 +40,16 @@ class OpenAIChat:
                   writing) where reasoning tokens only consume budget.
     """
 
-    def __init__(self, base_url: str, model: str, *, api_key: str | None = None,
-                 max_concurrency: int = 16, timeout: float = 180.0,
-                 thinking: bool | None = None) -> None:
+    def __init__(
+        self,
+        base_url: str,
+        model: str,
+        *,
+        api_key: str | None = None,
+        max_concurrency: int = 16,
+        timeout: float = 180.0,
+        thinking: bool | None = None,
+    ) -> None:
         self.base_url = base_url.rstrip("/")
         self.model = model
         self._key = api_key
@@ -50,12 +57,20 @@ class OpenAIChat:
         self._timeout = timeout
         self._thinking = thinking
 
-    async def chat(self, system: str, user: str, *, temperature: float = 0.0,
-                   max_tokens: int = 4096) -> str:
+    async def chat(
+        self,
+        system: str,
+        user: str,
+        *,
+        temperature: float = 0.0,
+        max_tokens: int = 4096,
+    ) -> str:
         body: dict = {
             "model": self.model,
-            "messages": [{"role": "system", "content": system},
-                         {"role": "user", "content": user}],
+            "messages": [
+                {"role": "system", "content": system},
+                {"role": "user", "content": user},
+            ],
             "temperature": temperature,
             "max_tokens": max_tokens,
         }
@@ -72,7 +87,9 @@ class OpenAIChat:
         req = urllib.request.Request(
             f"{self.base_url}/chat/completions",
             data=json.dumps(body).encode("utf-8"),
-            headers=headers, method="POST")
+            headers=headers,
+            method="POST",
+        )
         try:
             with urllib.request.urlopen(req, timeout=self._timeout) as resp:
                 return json.loads(resp.read().decode("utf-8", "replace"))

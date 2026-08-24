@@ -1,0 +1,59 @@
+{
+  "case_id": "case_002",
+  "input_type": "phenotype_list",
+  "language": "en",
+  "clinical_text": "Findings: coarse facial features; hepatosplenomegaly; corneal clouding; short stature; joint stiffness with claw hand deformity; recurrent upper respiratory infections; umbilical hernia repaired in infancy. Absent: intellectual disability; cardiac valve involvement on last echocardiogram.",
+  "phenotypes": [
+    {
+      "name": "Coarse facial features",
+      "term_id": "HP:0000280",
+      "present": true
+    },
+    {
+      "name": "Hepatosplenomegaly",
+      "term_id": "HP:0001433",
+      "present": true
+    },
+    {
+      "name": "Corneal opacity",
+      "term_id": "HP:0007957",
+      "present": true
+    },
+    {
+      "name": "Short stature",
+      "term_id": "HP:0004322",
+      "present": true
+    },
+    {
+      "name": "Joint stiffness",
+      "term_id": "HP:0001387",
+      "present": true
+    },
+    {
+      "name": "Recurrent respiratory infections",
+      "term_id": "HP:0002205",
+      "present": true
+    },
+    {
+      "name": "Umbilical hernia",
+      "term_id": "HP:0001537",
+      "present": true
+    },
+    {
+      "name": "Intellectual disability",
+      "term_id": "HP:0001249",
+      "present": false
+    },
+    {
+      "name": "Abnormal heart valve morphology",
+      "term_id": "HP:0001654",
+      "present": false
+    }
+  ],
+  "gold_diagnosis": "Mucopolysaccharidosis type I, Scheie form",
+  "gold_synonyms": [
+    "MPS I-S",
+    "Scheie syndrome"
+  ],
+  "notes": "Structured phenotype input with two pertinent negatives. The absent intellectual disability is what separates the attenuated form from the severe one, so an implementation that drops negatives loses the discriminating finding."
+}

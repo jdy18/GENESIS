@@ -3,7 +3,7 @@ requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "medunion-agent"
+name = "genesis"
 version = "0.1.0"
 description = "An evidence-auditing multi-agent diagnostic workflow"
 readme = "README.md"
@@ -23,15 +23,15 @@ classifiers = [
 
 # No runtime dependencies: the workflow uses only the standard library, and
 # connects to models and retrieval indices through the protocols in
-# medunion_agent.tools.base and medunion_agent.llm.base.
+# genesis.tools.base and genesis.llm.base.
 dependencies = []
 
 [project.urls]
-Homepage = "https://github.com/jdy18/MedUnion-Agent"
-Source = "https://github.com/jdy18/MedUnion-Agent"
+Homepage = "https://github.com/jdy18/GENESIS"
+Source = "https://github.com/jdy18/GENESIS"
 
 [tool.setuptools.packages.find]
-include = ["medunion_agent*"]
+include = ["genesis*"]
 
 [tool.ruff]
 line-length = 88

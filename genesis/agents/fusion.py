@@ -28,10 +28,16 @@ from ..prompts import EVIDENCE_FUSION
 from ..types import Candidate, Evidence, FusionResult, Phenotype, Reference
 
 
-async def run(model: ChatModel, text: str, phenotypes: list[Phenotype],
-              candidates: list[Candidate], evidence: list[Evidence],
-              proposed: list[Candidate] | None = None,
-              k: int = 5, max_tokens: int = 8192) -> FusionResult:
+async def run(
+    model: ChatModel,
+    text: str,
+    phenotypes: list[Phenotype],
+    candidates: list[Candidate],
+    evidence: list[Evidence],
+    proposed: list[Candidate] | None = None,
+    k: int = 5,
+    max_tokens: int = 8192,
+) -> FusionResult:
     """Rank the differential against the evidence, and say whether to reflect.
 
     Raises on an unusable reply rather than quietly returning the input
@@ -49,35 +55,45 @@ async def run(model: ChatModel, text: str, phenotypes: list[Phenotype],
         numbered.append((f"[{i}]", ev))
     marker_of = {id(ev): m for m, ev in numbered}
 
-    user = json.dumps({
-        "clinical_case": text,
-        "findings_present": [p.name for p in phenotypes if p.present],
-        "findings_absent": [p.name for p in phenotypes if not p.present],
-        "working_differential": [
-            {
-                "rank": c.rank,
-                "name": c.name,
-                "rationale": c.rationale,
-                "supporting_findings": c.supporting_findings,
-                "contradictory_findings": c.contradictory_findings,
-                "unresolved_questions": c.unresolved_questions,
-                "evidence": [
-                    {"citation": marker_of[id(e)], "pathway": e.kind.value,
-                     "stance": e.stance.value, "source": e.source,
-                     "record": e.text()}
-                    for e in by_cand.get(c.key(), [])
-                ],
-            }
-            for c in sorted(candidates, key=lambda c: c.rank)
-        ],
-        "alternatives_proposed_by_agents": [
-            {"name": c.name, "rationale": c.rationale} for c in (proposed or [])
-        ],
-        "candidates_requested": k,
-    }, ensure_ascii=False, default=str)
+    user = json.dumps(
+        {
+            "clinical_case": text,
+            "findings_present": [p.name for p in phenotypes if p.present],
+            "findings_absent": [p.name for p in phenotypes if not p.present],
+            "working_differential": [
+                {
+                    "rank": c.rank,
+                    "name": c.name,
+                    "rationale": c.rationale,
+                    "supporting_findings": c.supporting_findings,
+                    "contradictory_findings": c.contradictory_findings,
+                    "unresolved_questions": c.unresolved_questions,
+                    "evidence": [
+                        {
+                            "citation": marker_of[id(e)],
+                            "pathway": e.kind.value,
+                            "stance": e.stance.value,
+                            "source": e.source,
+                            "record": e.text(),
+                        }
+                        for e in by_cand.get(c.key(), [])
+                    ],
+                }
+                for c in sorted(candidates, key=lambda c: c.rank)
+            ],
+            "alternatives_proposed_by_agents": [
+                {"name": c.name, "rationale": c.rationale}
+                for c in (proposed or [])
+            ],
+            "candidates_requested": k,
+        },
+        ensure_ascii=False,
+        default=str,
+    )
 
-    raw = await model.chat(EVIDENCE_FUSION, user, temperature=0.2,
-                           max_tokens=max_tokens)
+    raw = await model.chat(
+        EVIDENCE_FUSION, user, temperature=0.2, max_tokens=max_tokens
+    )
     obj = parse_json(raw)
     if not isinstance(obj, dict):
         raise ValueError(f"fusion reply was not a JSON object ({len(raw)} chars)")
@@ -114,30 +130,41 @@ async def run(model: ChatModel, text: str, phenotypes: list[Phenotype],
             old = prior.get(alias)
             if old is not None:
                 break
-        out.append(Candidate(
-            name=name,
-            rank=i,
-            rationale=str(item.get("reasoning") or item.get("rationale") or "")
-                      or (old.rationale if old else ""),
-            rarity=str(item.get("rarity") or ""),
-            confidence=str(item.get("confidence") or ""),
-            exams=str(item.get("exams") or ""),
-            supporting_findings=list(old.supporting_findings) if old else [],
-            contradictory_findings=list(old.contradictory_findings) if old else [],
-            unresolved_questions=list(old.unresolved_questions) if old else [],
-            concept_ids=dict(old.concept_ids) if old else {},
-        ))
+        out.append(
+            Candidate(
+                name=name,
+                rank=i,
+                rationale=str(
+                    item.get("reasoning") or item.get("rationale") or ""
+                )
+                or (old.rationale if old else ""),
+                rarity=str(item.get("rarity") or ""),
+                confidence=str(item.get("confidence") or ""),
+                exams=str(item.get("exams") or ""),
+                supporting_findings=list(old.supporting_findings) if old else [],
+                contradictory_findings=(
+                    list(old.contradictory_findings) if old else []
+                ),
+                unresolved_questions=list(old.unresolved_questions) if old else [],
+                concept_ids=dict(old.concept_ids) if old else {},
+            )
+        )
 
     refs: list[Reference] = []
-    for r in (obj.get("references") or []):
+    for r in obj.get("references") or []:
         if not isinstance(r, dict):
             continue
         rid = str(r.get("id") or "").strip()
         if not rid:
             continue
-        refs.append(Reference(id=rid, type=str(r.get("type") or ""),
-                              description=str(r.get("description") or ""),
-                              source=str(r.get("source") or "")))
+        refs.append(
+            Reference(
+                id=rid,
+                type=str(r.get("type") or ""),
+                description=str(r.get("description") or ""),
+                source=str(r.get("source") or ""),
+            )
+        )
 
     if not out:
         raise ValueError("no candidate in the fusion reply had a usable name")

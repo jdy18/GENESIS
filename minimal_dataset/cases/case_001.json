@@ -1,0 +1,12 @@
+{
+  "case_id": "case_001",
+  "input_type": "free_text",
+  "language": "en",
+  "clinical_text": "32-year-old woman presenting with progressive proximal muscle weakness over 8 months, exercise intolerance and bilateral ptosis. She reports two episodes of transient right-sided weakness with headache in the past year, each resolving within 48 hours. Height 152 cm, below the 3rd centile for her family. Serum lactate 4.2 mmol/L (reference 0.5-2.2), resting. Creatine kinase 480 U/L. Thyroid function normal. Brain MRI: bilateral parieto-occipital signal change not conforming to a single vascular territory. Muscle biopsy: ragged red fibres on modified Gomori trichrome, subsarcolemmal accumulation of mitochondria on succinate dehydrogenase staining. No family history of neuromuscular disease; mother reports migraine and early hearing loss.",
+  "gold_diagnosis": "MELAS syndrome",
+  "gold_synonyms": [
+    "Mitochondrial encephalomyopathy with lactic acidosis and stroke-like episodes",
+    "MELAS"
+  ],
+  "notes": "Free-text narrative with laboratory values, imaging and histology. Exercises the knowledge and analogy pathways: the ragged red fibres and elevated lactate are retrievable defining features, while the stroke-like episodes distinguish MELAS from a generic mitochondrial myopathy."
+}

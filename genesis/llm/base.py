@@ -28,13 +28,18 @@ class ChatModel(Protocol):
     very different inputs to a diagnostic decision.
     """
 
-    async def chat(self, system: str, user: str, *,
-                   temperature: float = 0.0,
-                   max_tokens: int = 4096) -> str:
+    async def chat(
+        self,
+        system: str,
+        user: str,
+        *,
+        temperature: float = 0.0,
+        max_tokens: int = 4096,
+    ) -> str:
         ...
 
 
-# ── JSON coercion ────────────────────────────────────────────────────────────
+# ── JSON coercion ──
 
 _FENCE = re.compile(r"^\s*```(?:json)?\s*|\s*```\s*$")
 
@@ -81,7 +86,7 @@ def parse_json(text: str) -> Any:
                 depth -= 1
                 if depth == 0:
                     try:
-                        return json.loads(s[start:i + 1])
+                        return json.loads(s[start : i + 1])
                     except Exception:
                         break
     return None

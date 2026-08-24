@@ -1,0 +1,37 @@
+[
+  {
+    "id": "KB0001",
+    "title": "MELAS syndrome: clinical spectrum and molecular basis",
+    "text": "Mitochondrial encephalomyopathy with lactic acidosis and stroke-like episodes presents with recurrent stroke-like episodes not confined to a single vascular territory, exercise intolerance, short stature and sensorineural hearing loss. Resting serum lactate is elevated in most patients. Muscle biopsy characteristically shows ragged red fibres on modified Gomori trichrome staining. The m.3243A>G variant in MT-TL1 accounts for approximately 80% of cases; inheritance is maternal.",
+    "source": "reference summary",
+    "score": 0.91
+  },
+  {
+    "id": "KB0002",
+    "title": "Mitochondrial myopathy without central nervous system involvement",
+    "text": "Isolated mitochondrial myopathy presents with proximal weakness, exercise intolerance and ptosis. Ragged red fibres are present on biopsy and lactate may be raised. Stroke-like episodes and cortical lesions are not features; their presence points to an encephalomyopathy rather than isolated muscle disease.",
+    "source": "reference summary",
+    "score": 0.78
+  },
+  {
+    "id": "KB0003",
+    "title": "Attenuated mucopolysaccharidosis type I",
+    "text": "The attenuated form presents with corneal clouding, joint stiffness and claw hand, short stature, coarse facies and hepatosplenomegaly, with cognition preserved. Preserved intellect distinguishes it from the severe form. Urinary glycosaminoglycan screening is followed by alpha-L-iduronidase enzyme assay for confirmation.",
+    "source": "reference summary",
+    "score": 0.88
+  },
+  {
+    "id": "KB0004",
+    "title": "Acute intermittent porphyria: attacks and triggers",
+    "text": "Attacks present with severe abdominal pain without peritoneal signs, vomiting, hypertension and tachycardia, often with hyponatraemia from inappropriate antidiuretic hormone secretion. Peripheral neuropathy may follow repeated attacks. Urine may darken on standing in light. Many drugs precipitate attacks. Diagnosis rests on urinary porphobilinogen during an attack. Inheritance is autosomal dominant with low penetrance, so a family history may be limited to one relative.",
+    "source": "reference summary",
+    "score": 0.93
+  },
+  {
+    "id": "KB0005",
+    "title": "Lead poisoning as a cause of abdominal pain with neuropathy",
+    "text": "Lead poisoning causes colicky abdominal pain, anaemia with basophilic stippling and motor neuropathy. Occupational or environmental exposure is expected. Blood lead concentration establishes the diagnosis.",
+    "source": "reference summary",
+    "score": 0.61
+  }
+]

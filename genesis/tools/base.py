@@ -2,7 +2,7 @@
 
 The workflow depends only on the `Protocol`s below. Anything satisfying them can
 be plugged in: a full local retrieval stack, a single flat JSON file, an
-in-memory stub for tests. Nothing in `medunion_agent/` imports an HTTP client, a
+in-memory stub for tests. Nothing in `genesis/` imports an HTTP client, a
 tool-server SDK or an ontology file.
 
 `Protocol` (structural typing) rather than an abstract base class, so an adopter
@@ -60,8 +60,9 @@ class ExpertMethod(Protocol):
 
     name: str
 
-    async def rank(self, phenotypes: list[Phenotype],
-                   text: str | None = None) -> list[Candidate]:
+    async def rank(
+        self, phenotypes: list[Phenotype], text: str | None = None
+    ) -> list[Candidate]:
         ...
 
 
@@ -95,10 +96,13 @@ class CaseIndex(Protocol):
 
     name: str
 
-    async def search(self, phenotypes: list[Phenotype],
-                     text: str | None = None,
-                     disease_names: list[str] | None = None,
-                     top_k: int = 3) -> list[dict[str, Any]]:
+    async def search(
+        self,
+        phenotypes: list[Phenotype],
+        text: str | None = None,
+        disease_names: list[str] | None = None,
+        top_k: int = 3,
+    ) -> list[dict[str, Any]]:
         ...
 
 
@@ -116,6 +120,11 @@ class EvidenceSummarizer(Protocol):
     as real.
     """
 
-    async def summarize(self, candidate: Candidate, record: dict[str, Any],
-                        kind: Any, source: str) -> Evidence | None:
+    async def summarize(
+        self,
+        candidate: Candidate,
+        record: dict[str, Any],
+        kind: Any,
+        source: str,
+    ) -> Evidence | None:
         ...

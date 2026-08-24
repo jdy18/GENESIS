@@ -1,0 +1,12 @@
+{
+  "case_id": "case_003",
+  "input_type": "free_text",
+  "language": "zh",
+  "clinical_text": "男性，41 岁。反复发作性腹痛 3 年，每次持续 2-5 天，伴恶心呕吐，多次于急诊就诊，腹部 CT 及胃肠镜均未见异常。近一年出现双下肢无力及肢端麻木，行走易疲劳。发作期血压 165/100 mmHg，心率 110 次/分。发作期查血钠 122 mmol/L。尿色于日光下放置后变深。既往因「焦虑状态」服用多种药物，家族中一姑母有类似腹痛病史。否认饮酒史，否认铅接触史。",
+  "gold_diagnosis": "急性间歇性卟啉病",
+  "gold_synonyms": [
+    "Acute intermittent porphyria",
+    "AIP"
+  ],
+  "notes": "Chinese free-text record. The discriminating clues — urine darkening on light exposure, hyponatraemia during attacks, a family history of the same pain — are in the narrative but would not survive phenotype extraction into ontology terms alone."
+}

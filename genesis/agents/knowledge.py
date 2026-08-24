@@ -24,13 +24,20 @@ from dataclasses import dataclass
 from ..llm.base import ChatModel, parse_json
 from ..prompts import KNOWLEDGE_QUERIES
 from ..tools.base import EvidenceSummarizer, KnowledgeSource
-from ..types import (AgentReport, Candidate, Evidence, EvidenceKind, Phenotype,
-                     Stance)
+from ..types import (
+    AgentReport,
+    Candidate,
+    Evidence,
+    EvidenceKind,
+    Phenotype,
+    Stance,
+)
 
 
 @dataclass(frozen=True)
 class RetrievalBudget:
     """How wide and how deep to retrieve in one cycle."""
+
     queries_per_candidate: int
     records_per_source: int
 
@@ -50,13 +57,15 @@ class RetrievalBudget:
 AXES = ("defining_features", "contradictory_findings", "mechanism")
 
 
-async def run(candidates: list[Candidate],
-              phenotypes: list[Phenotype],
-              sources: list[KnowledgeSource],
-              model: ChatModel,
-              summarizer: EvidenceSummarizer | None = None,
-              budget: RetrievalBudget | None = None,
-              text: str = "") -> AgentReport:
+async def run(
+    candidates: list[Candidate],
+    phenotypes: list[Phenotype],
+    sources: list[KnowledgeSource],
+    model: ChatModel,
+    summarizer: EvidenceSummarizer | None = None,
+    budget: RetrievalBudget | None = None,
+    text: str = "",
+) -> AgentReport:
     """Retrieve per candidate along the axes the budget allows.
 
     `text` is the case. Queries built from a phenotype name list alone miss the
@@ -67,10 +76,12 @@ async def run(candidates: list[Candidate],
     preferred mode: a condensed record carries strictly less than the record.
     """
     if not sources:
-        return AgentReport(kind=EvidenceKind.KNOWLEDGE,
-                           notes="no knowledge sources configured")
+        return AgentReport(
+            kind=EvidenceKind.KNOWLEDGE,
+            notes="no knowledge sources configured",
+        )
     budget = budget or RetrievalBudget.initial()
-    axes = AXES[:max(1, min(budget.queries_per_candidate, len(AXES)))]
+    axes = AXES[: max(1, min(budget.queries_per_candidate, len(AXES)))]
 
     present = [p.name for p in phenotypes if p.present]
     absent = [p.name for p in phenotypes if not p.present]
@@ -108,7 +119,7 @@ async def run(candidates: list[Candidate],
         if isinstance(res, BaseException):
             failures.append(f"{src.name}: {type(res).__name__}")
             continue
-        for rec in (res or []):
+        for rec in res or []:
             if summarizer is None:
                 # Verbatim. No stance is asserted here: whether a record supports
                 # or refutes a candidate depends on the case — "lactate is
@@ -116,24 +127,31 @@ async def run(candidates: list[Candidate],
                 # one patient and refutes it for another — and the audit is the
                 # stage that has the case in view. A wrong REFUTES at this point
                 # would silently sink a correct candidate.
-                evidence.append(Evidence(
-                    candidate_key=cand.key(),
-                    kind=EvidenceKind.KNOWLEDGE,
-                    stance=Stance.NEUTRAL,
-                    source=f"{src.name} ({axis})",
-                    content=_render(rec),
-                    source_id=_rec_id(rec),
-                    score=_rec_score(rec),
-                    raw=rec,
-                ))
+                evidence.append(
+                    Evidence(
+                        candidate_key=cand.key(),
+                        kind=EvidenceKind.KNOWLEDGE,
+                        stance=Stance.NEUTRAL,
+                        source=f"{src.name} ({axis})",
+                        content=_render(rec),
+                        source_id=_rec_id(rec),
+                        score=_rec_score(rec),
+                        raw=rec,
+                    )
+                )
             else:
-                sum_tasks.append(summarizer.summarize(
-                    cand, rec, EvidenceKind.KNOWLEDGE, src.name))
+                sum_tasks.append(
+                    summarizer.summarize(
+                        cand, rec, EvidenceKind.KNOWLEDGE, src.name
+                    )
+                )
                 sum_meta.append((cand, axis, src))
 
     if sum_tasks:
         for (cand, axis, src), ev in zip(
-                sum_meta, await asyncio.gather(*sum_tasks, return_exceptions=True)):
+            sum_meta,
+            await asyncio.gather(*sum_tasks, return_exceptions=True),
+        ):
             if isinstance(ev, BaseException) or ev is None:
                 continue
             ev.candidate_key = cand.key()
@@ -148,16 +166,21 @@ async def run(candidates: list[Candidate],
     covered = {e.candidate_key for e in evidence}
     for cand in candidates:
         if cand.key() not in covered:
-            evidence.append(Evidence(
-                candidate_key=cand.key(),
-                kind=EvidenceKind.KNOWLEDGE,
-                stance=Stance.NEUTRAL,
-                content="No records retrieved from the knowledge indices.",
-                source="knowledge retrieval (empty)",
-            ))
+            evidence.append(
+                Evidence(
+                    candidate_key=cand.key(),
+                    kind=EvidenceKind.KNOWLEDGE,
+                    stance=Stance.NEUTRAL,
+                    content="No records retrieved from the knowledge indices.",
+                    source="knowledge retrieval (empty)",
+                )
+            )
 
-    return AgentReport(kind=EvidenceKind.KNOWLEDGE, evidence=evidence,
-                       notes="; ".join(failures))
+    return AgentReport(
+        kind=EvidenceKind.KNOWLEDGE,
+        evidence=evidence,
+        notes="; ".join(failures),
+    )
 
 
 def _render(rec: dict) -> str:
@@ -195,20 +218,31 @@ def _rec_score(rec: dict) -> float | None:
     return None
 
 
-async def _queries(model: ChatModel, cand: Candidate,
-                   present: list[str], absent: list[str],
-                   axes: tuple[str, ...], text: str) -> dict[str, str]:
-    user = json.dumps({
-        "clinical_case": text,
-        "candidate": cand.name,
-        "concept_ids": cand.concept_ids,
-        "rationale": cand.rationale,
-        "findings_present": present,
-        "findings_absent": absent,
-        "axes_requested": list(axes),
-    }, ensure_ascii=False)
-    parsed = parse_json(await model.chat(KNOWLEDGE_QUERIES, user, temperature=0.0,
-                                         max_tokens=400))
+async def _queries(
+    model: ChatModel,
+    cand: Candidate,
+    present: list[str],
+    absent: list[str],
+    axes: tuple[str, ...],
+    text: str,
+) -> dict[str, str]:
+    user = json.dumps(
+        {
+            "clinical_case": text,
+            "candidate": cand.name,
+            "concept_ids": cand.concept_ids,
+            "rationale": cand.rationale,
+            "findings_present": present,
+            "findings_absent": absent,
+            "axes_requested": list(axes),
+        },
+        ensure_ascii=False,
+    )
+    parsed = parse_json(
+        await model.chat(
+            KNOWLEDGE_QUERIES, user, temperature=0.0, max_tokens=400
+        )
+    )
     if not isinstance(parsed, dict):
         raise ValueError("query generation returned no object")
     return {a: str(parsed.get(a, "") or "") for a in axes}
