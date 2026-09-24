@@ -78,11 +78,18 @@ again, its own previous candidates, the records each of them accumulated across
 the three pathways, and the audit report. It may keep, drop, reorder or introduce
 candidates. Whatever it introduces goes back through retrieval at greater depth
 — three queries per candidate instead of one, ten records per source instead of
-three — while candidates that already have evidence are not re-queried. At most
-three rounds.
+three — while evidence already collected remains available. With
+`max_rounds=2`, the workflow performs an initial cycle and at most two revisions.
 
 Every stage receives the full case text, with retrieved evidence added alongside
 it.
+
+## Methods and model documentation
+
+- [Model and training](docs/model_training.md) — training architecture, dataset composition and curriculum.
+- [Data and knowledge resources](docs/resources.md) — resource versions, case repositories and auxiliary models.
+- [Inference methods](docs/inference.md) — evidence pathways, fusion, revision and local deployment.
+- [Prompt reference](docs/prompts.md) — complete templates from the source code.
 
 ## Install
 
@@ -125,7 +132,7 @@ result = asyncio.run(diagnose(
     case_text,
     models=Models(reasoner=reasoner, worker=worker),
     tools=Tools(...),               # see Interfaces
-    config=Config(k=5, max_rounds=3),
+    config=Config(k=5, max_rounds=2),
 ))
 
 result.top_k              # ranked differential
