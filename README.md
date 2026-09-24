@@ -86,9 +86,7 @@ it.
 
 ## Methods and model documentation
 
-- [Model and training](docs/model_training.md) — training architecture, dataset composition and curriculum.
-- [Data and knowledge resources](docs/resources.md) — resource versions, case repositories and auxiliary models.
-- [Inference methods](docs/inference.md) — evidence pathways, fusion, revision and local deployment.
+- [Model documentation](docs/model_documentation.md) — training architecture, resource composition, synthetic-data construction, quality review, resource versions, access terms and multi-agent organisation.
 - [Prompt reference](docs/prompts.md) — complete templates from the source code.
 
 ## Install
