@@ -4,12 +4,12 @@ The whole scheme, in the order it runs:
 
   1. One model proposes candidate diseases.
   2. Three evidence agents run in parallel over those candidates:
-       2.1 multi-expert consensus — is the initial differential reasonable, and
+       2.1 Multi-expert consensus — is the initial differential reasonable, and
            what hypotheses were missed?
-       2.2 knowledge reasoning    — retrieve on symptoms / candidate names,
+       2.2 Dynamic knowledge retrieval and deduction    — retrieve on symptoms / candidate names,
                                     reason over what comes back, summarize
-       2.3 similar cases          — same, against historical case indices
-  3. Fusion and reflection: aggregate the evidence, look for conflict. If
+       2.3 Historical-case analogy          — same, against historical case indices
+  3. Evidence fusion and Evidence-consistency audit: aggregate the evidence, look for conflict. If
      another round is warranted:
        3.1 the proposing model is given the accumulated evidence and asked
            whether the differential should change
@@ -38,6 +38,7 @@ from . import engine
 from .agents import analogy, audit as audit_mod, consensus, fusion, knowledge
 from .agents.knowledge import RetrievalBudget
 from .llm.base import ChatModel
+from .network import require_local_model, tool_allowed
 from .tools.base import (
     CaseIndex,
     ConceptNormalizer,
@@ -81,24 +82,49 @@ class Tools:
     case_indices: list[CaseIndex] = field(default_factory=list)
     summarizer: EvidenceSummarizer | None = None
 
+    def for_network(self, allow_external_requests: bool) -> Tools:
+        """Select permitted tools without changing the caller's configuration."""
+        def select(tool):
+            if tool is None or tool_allowed(tool, allow_external_requests):
+                return tool
+            log.info("tool omitted by access configuration: %s",
+                     getattr(tool, "name", type(tool).__name__))
+            return None
+
+        def select_many(items):
+            return [selected for item in items
+                    if (selected := select(item)) is not None]
+
+        return Tools(
+            phenotype_extractor=select(self.phenotype_extractor),
+            concept_normalizer=select(self.concept_normalizer),
+            expert_methods=select_many(self.expert_methods),
+            knowledge_sources=select_many(self.knowledge_sources),
+            case_indices=select_many(self.case_indices),
+            summarizer=select(self.summarizer),
+        )
+
 
 @dataclass
 class Models:
-    """The two model roles the workflow itself needs.
+    """GENESIS-R1 for diagnostic reasoning; a small model for auxiliary tasks.
 
-    `reasoner` proposes and revises the differential. `worker` drives the agents'
-    own reasoning and the audit narrative. They may be the same object.
-
-    Whatever model extracts phenotypes or condenses retrieved records is not
-    here — that belongs to the tool layer.
+    `auxiliary` checks retrieved-case relevance. The same model can be passed
+    to the phenotype extractor and evidence summarizer in `tools.llm`.
+    `worker` is retained only as a compatibility alias for `reasoner`.
     """
 
     reasoner: ChatModel
     worker: ChatModel | None = None
+    auxiliary: ChatModel | None = None
 
     def __post_init__(self) -> None:
-        if self.worker is None:
-            self.worker = self.reasoner
+        if self.worker is not None and self.worker is not self.reasoner:
+            raise ValueError(
+                "Diagnostic stages share Models.reasoner. Pass the auxiliary "
+                "model as Models(auxiliary=...), not worker."
+            )
+        self.worker = self.reasoner
 
 
 @dataclass
@@ -115,6 +141,7 @@ class Config:
     use_knowledge: bool = True
     use_analogy: bool = True
     use_reflection: bool = True
+    allow_external_requests: bool = True
 
 
 async def diagnose(
@@ -128,9 +155,14 @@ async def diagnose(
     cfg = config or Config()
     t0 = time.monotonic()
 
+    if not cfg.allow_external_requests:
+        require_local_model(models.reasoner, "Models.reasoner")
+        require_local_model(models.auxiliary, "Models.auxiliary")
+    tools = tools.for_network(cfg.allow_external_requests)
+
     phenotypes = await _extract(text, tools)
 
-    # ── 1. propose ──
+    # ── 1. Initial differential diagnosis ──
     candidates = await engine.propose(models.reasoner, text, phenotypes, cfg.k)
     if not candidates:
         return DiagnosisResult(
@@ -174,11 +206,11 @@ async def diagnose(
             if c.key() not in seen
         ]
 
-        # ── 3. fusion: the evidence becomes the answer ──
+        # ── 3. Evidence fusion ──
         # Every round, so the differential returned always reflects what was
         # retrieved. Fusion also says whether it could settle the case.
         fused = await fusion.run(
-            models.worker,
+            models.reasoner,
             text,
             phenotypes,
             candidates,
@@ -193,7 +225,7 @@ async def diagnose(
         # round, and folding the current set in first would make that check
         # always false.
 
-        # ── 4. audit: name what is missing, when fusion could not settle ──
+        # ── 4. Evidence-consistency audit, when required ──
         # Skipped when fusion is satisfied: the audit exists to produce the
         # findings the engine revises against, and there is nothing to revise.
         report = _settled(fused)
@@ -202,7 +234,7 @@ async def diagnose(
                 candidates=candidates,
                 evidence=evidence,
                 known_before=seen,
-                model=models.worker,
+                model=models.reasoner,
                 case_text=text,
                 proposed=proposed,
                 discriminate_margin=cfg.discriminate_margin,
@@ -232,7 +264,7 @@ async def diagnose(
         # Everything on the differential now counts as known.
         seen |= {c.key() for c in candidates}
 
-        # ── 5. the proposing model revises against the audit ──
+        # ── 5. Revised differential diagnosis ──
         before = set(seen)
         candidates = await engine.revise(
             models.reasoner,
@@ -310,13 +342,13 @@ async def _gather_evidence(
                     phenotypes=phenotypes,
                     text=text,
                     methods=tools.expert_methods,
-                    model=models.worker,
+                    model=models.reasoner,
                     normalizer=tools.concept_normalizer,
                 ),
             )
         )
 
-    if cfg.use_knowledge and tools.knowledge_sources and tools.summarizer:
+    if cfg.use_knowledge and tools.knowledge_sources:
         jobs.append(
             (
                 "knowledge",
@@ -324,7 +356,7 @@ async def _gather_evidence(
                     candidates=examine,
                     phenotypes=phenotypes,
                     sources=tools.knowledge_sources,
-                    model=models.worker,
+                    model=models.reasoner,
                     summarizer=tools.summarizer,
                     budget=budget,
                     text=text,
@@ -341,7 +373,8 @@ async def _gather_evidence(
                     phenotypes=phenotypes,
                     text=text,
                     indices=tools.case_indices,
-                    model=models.worker,
+                    model=models.reasoner,
+                    auxiliary=models.auxiliary,
                     top_k=budget.records_per_source or cfg.analogy_top_k,
                 ),
             )
@@ -377,13 +410,11 @@ _KIND = {
 
 
 def _settled(fused) -> AuditReport:
-    """The audit report for a round fusion settled on its own.
-
-    Fusion reports `reflection_needed=false` when the evidence lines up, so there
-    are no findings to revise against and the audit is not called. This fills in
-    the report that would have said so.
-    """
-    return AuditReport(consistent=True, reasoning=fused.reflection_reason)
+    """Preserve fusion's status when no audit is performed."""
+    return AuditReport(
+        consistent=not fused.reflection_needed,
+        reasoning=fused.reflection_reason,
+    )
 
 
 def _workup(cycles: list[CycleTrace]) -> list[str]:

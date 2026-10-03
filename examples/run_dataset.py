@@ -30,6 +30,7 @@ DATA = ROOT / "minimal_dataset"
 
 from genesis import Config, Models, Tools, diagnose  # noqa: E402
 from genesis.types import Candidate, Phenotype  # noqa: E402
+from genesis.tools import ModelEvidenceSummarizer  # noqa: E402
 
 
 # ── tools, backed by the JSON files ──
@@ -42,6 +43,7 @@ class FileKnowledge:
     """
 
     name = "knowledge-index"
+    requires_external_access = False
 
     def __init__(self) -> None:
         self._records = json.loads((DATA / "indices/knowledge.json").read_text("utf-8"))
@@ -62,6 +64,7 @@ class FileCases:
     """Shared-phenotype matching over `indices/cases.json`."""
 
     name = "case-index"
+    requires_external_access = False
 
     def __init__(self) -> None:
         self._records = json.loads((DATA / "indices/cases.json").read_text("utf-8"))
@@ -92,6 +95,8 @@ class FileCases:
 class FileExpert:
     """One method's ranked list out of `indices/expert_rankings.json`."""
 
+    requires_external_access = False
+
     def __init__(self, name: str, case_id: str) -> None:
         self.name = name
         table = json.loads((DATA / "indices/expert_rankings.json").read_text("utf-8"))
@@ -113,6 +118,8 @@ class GivenPhenotypes:
     `phenotypes` block get an empty list, which is legitimate: the workflow reads
     the narrative either way.
     """
+
+    requires_external_access = False
 
     def __init__(self, case: dict) -> None:
         self._items = case.get("phenotypes") or []
@@ -138,6 +145,7 @@ class ScriptedModel:
     """
 
     def __init__(self, case: dict) -> None:
+        self.requires_external_access = False
         self._gold = case["gold_diagnosis"]
         self._alt = "Mitochondrial myopathy"
         self._round = 0
@@ -174,6 +182,14 @@ class ScriptedModel:
             )
         if "diagnostic evidence auditor" in system:
             return json.dumps({"assessments": [], "alternatives": []})
+        if "You perform Historical-case analogy" in system:
+            payload = json.loads(user)
+            return json.dumps({"assessments": [{
+                "candidate": check["candidate"], "stance": "supports",
+                "summary": "The indexed presentation supports considering this candidate.",
+                "sources": [check["source"]],
+            } for check in payload["same_entity_checks"] if check["same_entity"]],
+                "alternatives": []})
         if "producing a final ranked differential" in system:
             payload = json.loads(user)
             names = [d["name"] for d in payload["working_differential"]]
@@ -271,13 +287,25 @@ async def run_case(path: Path, args) -> bool:
     case = json.loads(path.read_text("utf-8"))
     if args.base_url:
         from genesis.llm.openai_compat import OpenAIChat
-        model = OpenAIChat(args.base_url, args.model, api_key=args.api_key)
+        model = OpenAIChat(
+            args.base_url, args.model, api_key=args.api_key,
+            requires_external_access=args.model_access == "external",
+        )
     else:
         model = ScriptedModel(case)
 
+    auxiliary = None
+    if args.auxiliary_base_url:
+        from genesis.llm.openai_compat import OpenAIChat
+        auxiliary = OpenAIChat(
+            args.auxiliary_base_url, args.auxiliary_model,
+            api_key=args.auxiliary_api_key, thinking=False,
+            requires_external_access=args.auxiliary_access == "external",
+        )
+
     result = await diagnose(
         case["clinical_text"],
-        models=Models(reasoner=model),
+        models=Models(reasoner=model, auxiliary=auxiliary),
         tools=Tools(
             phenotype_extractor=GivenPhenotypes(case),
             expert_methods=[
@@ -286,8 +314,9 @@ async def run_case(path: Path, args) -> bool:
             ],
             knowledge_sources=[FileKnowledge()],
             case_indices=[FileCases()],
+            summarizer=ModelEvidenceSummarizer(auxiliary) if auxiliary else None,
         ),
-        config=Config(k=3),
+        config=Config(k=3, allow_external_requests=args.network == "enabled"),
     )
 
     top = result.top_k[0] if result.top_k else "(none)"
@@ -309,11 +338,24 @@ async def main() -> None:
     ap.add_argument("--base-url", help="OpenAI-compatible endpoint")
     ap.add_argument("--model", default="", help="model id as the server lists it")
     ap.add_argument("--api-key", default=None)
+    ap.add_argument("--auxiliary-base-url", help="auxiliary model endpoint")
+    ap.add_argument("--auxiliary-model", default="", help="auxiliary model identifier")
+    ap.add_argument("--auxiliary-api-key", default=None)
+    ap.add_argument("--network", choices=("enabled", "disabled"), default="enabled",
+                    help="allow external services or restrict to declared local components")
+    ap.add_argument("--model-access", choices=("local", "external"), default="external",
+                    help="access required by the reasoning endpoint")
+    ap.add_argument("--auxiliary-access", choices=("local", "external"), default="external",
+                    help="access required by the auxiliary endpoint")
     ap.add_argument("--verbose", action="store_true")
     args = ap.parse_args()
 
     if args.base_url and not args.model:
         ap.error("--model is required with --base-url")
+    if args.auxiliary_base_url and (not args.base_url or not args.auxiliary_model):
+        ap.error("--auxiliary-base-url requires --base-url and --auxiliary-model")
+    if args.auxiliary_model and not args.auxiliary_base_url:
+        ap.error("--auxiliary-model requires --auxiliary-base-url")
     logging.basicConfig(
         level=logging.INFO if args.verbose else logging.WARNING,
         format="  %(message)s",

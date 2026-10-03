@@ -1,10 +1,9 @@
 """LLM interface.
 
-One protocol, three roles: the reasoning engine that proposes and revises the
-differential, the working model that drives the agents and the audit narrative,
-and — behind the tool layer — whatever serves phenotype extraction and record
-condensation. Those are three bindings of the same interface, so callers accept a
-`ChatModel` and the wiring decides which weights answer.
+One protocol for language-model calls. GENESIS-R1 performs diagnostic reasoning;
+a small auxiliary language model extracts phenotypes, checks retrieved-record
+relevance and selects relevant text. Embedding services connect through retrieval
+and normalisation tools rather than this chat interface.
 
 Deliberately minimal: `chat()` and nothing else. Retry policy, concurrency caps
 and provider-specific request shaping belong in an adapter, not in a workflow

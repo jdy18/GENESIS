@@ -3,10 +3,8 @@
 
     python3 examples/minimal.py
 
-Its job is to show the wiring and to make the control flow observable: the stub
-audit is rigged so the first round is inconsistent, so you can watch the
-reflection path actually execute (revision -> new candidate -> deeper retrieval
-on that candidate only -> re-audit).
+Its job is to show model and tool wiring and to make completed evidence cycles
+observable. The scripted responses may settle after the initial cycle.
 
 Replace each stub with a real implementation and nothing in `genesis/`
 changes.
@@ -87,8 +85,11 @@ class StubReasoner:
         )
 
 
-class StubWorker:
-    """Stands in for the agent/audit backbone. Replies per prompt role."""
+class StubGENESISR1:
+    """One diagnostic model for initial diagnosis, evidence reasoning and fusion."""
+
+    def __init__(self) -> None:
+        self.reasoner = StubReasoner()
 
     async def chat(
         self,
@@ -98,6 +99,9 @@ class StubWorker:
         temperature: float = 0.0,
         max_tokens: int = 4096,
     ) -> str:
+        if "You are a diagnostician" in system or "revising a differential" in system:
+            return await self.reasoner.chat(system, user, temperature=temperature,
+                                            max_tokens=max_tokens)
         if "retrieval queries" in system:
             return json.dumps(
                 {
@@ -113,6 +117,14 @@ class StubWorker:
                     "justification": "Indexed case reports the same entity.",
                 }
             )
+        if "You perform Historical-case analogy" in system:
+            payload = json.loads(user)
+            return json.dumps({"assessments": [{
+                "candidate": check["candidate"], "stance": "neutral",
+                "summary": "Related historical presentation; the mitochondrial subtype remains unresolved.",
+                "sources": [check["source"]],
+            } for check in payload["same_entity_checks"] if check["same_entity"]],
+                "alternatives": []})
         if "producing a final ranked differential" in system:
             # Fusion: promote whatever the consensus agent proposed, so the
             # example shows evidence changing the ranking.
@@ -214,6 +226,15 @@ class StubWorker:
 
 # ── stub tools ──
 
+class StubAuxiliary:
+    """Scripted retrieved-case relevance check for the auxiliary-model role."""
+
+    async def chat(self, system, user, **kwargs):
+        return json.dumps({
+            "same_entity": True,
+            "justification": "Indexed case reports the same entity.",
+        })
+
 class StubExtractor:
     async def extract(self, text: str) -> list[Phenotype]:
         return [
@@ -289,7 +310,7 @@ async def main() -> None:
 
     result = await diagnose(
         CASE,
-        models=Models(reasoner=StubReasoner(), worker=StubWorker()),
+        models=Models(reasoner=StubGENESISR1(), auxiliary=StubAuxiliary()),
         tools=Tools(
             phenotype_extractor=StubExtractor(),
             concept_normalizer=StubNormalizer(),
@@ -315,7 +336,7 @@ async def main() -> None:
     )
 
     print(f"\n  consistency met : {result.consistency_met}")
-    print(f"  reflection rounds: {len(result.cycles)}   ({result.seconds:.2f}s)")
+    print(f"  evidence cycles: {len(result.cycles)}   ({result.seconds:.2f}s)")
     print(
         f"  phenotypes      : {len(result.phenotypes)} "
         f"({sum(1 for p in result.phenotypes if not p.present)} pertinent negative)"

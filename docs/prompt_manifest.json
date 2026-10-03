@@ -1,15 +1,16 @@
 {
   "prompt_source": "genesis/prompts.py",
-  "source_sha256": "b0d1ef5f988a7dac7d649090283e13d845a180c6325072ff115145a160677240",
+  "source_sha256": "f0369ad90a02f2d05145df1bc4e0c14e8ba196258d27868ffe6654dc5854392f",
   "templates": {
     "initial_differential": "9b6981068a5a45c1887706214f2f7bdfffc63e35a257f1cc97ba7ccebecd4b18",
     "revised_differential": "51119b6209ecb1467d5cdc39b1f4893fa65d13695281510701500de55d40fa50",
     "consensus_synthesis": "4811d11e66902ca5edd874d0728db19c1f248398a19bb6b4c7acac6b5cb8d98c",
     "knowledge_queries": "dcce699f1916d866fb2589c26046b0cb3d2e45e2cc10e4121f0a68e2147641b5",
     "analogy_same_entity": "de29ea6aef9ce2c6990efa115a27068e3af8e3ead7782bc44e4544fbb64d8b11",
+    "analogy_synthesis": "fc3b7a617abbdea4963055ab905b6a34fbf46aee4c4e5f67b13c10eefc28bf11",
     "evidence_fusion": "a5533ac379264acd6657bea3734f652476617ea2794ac9d5488e5893daf8431a",
     "audit_findings": "0dffd899050dcdfd589c3e3252a73d334d3ee47b30794c2218bc04c52eeb3b6c",
     "phenotype_extraction": "c32150419504c970afaec36560d79045976aa3b9de5e5428a4f234f77307e003",
-    "record_condensation": "62b9ff0073efaaf096f5c5f2830946d333538de552b4b6fffa2d0969ac2db7ff"
+    "record_condensation": "e09608ad9bd5ea7aba2257259581584780ea6fcebf99d876e360b7f5ee3fea3b"
   }
 }

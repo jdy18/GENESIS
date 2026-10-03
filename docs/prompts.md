@@ -1,10 +1,16 @@
 # GENESIS prompt reference
 
-The following templates are reproduced verbatim from [`genesis/prompts.py`](../genesis/prompts.py). The first seven templates support the orchestration workflow; phenotype extraction and record condensation are reference templates for tool implementations. Runtime case and evidence fields are assembled by the calling modules.
+English | [简体中文](zh-CN/prompts.md)
 
-## P1 Initial differential
+GENESIS is the complete multi-agent diagnostic system. GENESIS-R1 is the trained medical reasoning model used within GENESIS.
 
-**Role:** Reasoning model
+GENESIS-R1 performs diagnostic reasoning across the workflow, including the independent comparison of the current patient with retrieved historical cases. A smaller auxiliary language model handles simpler tasks quickly: extracting findings for HPO mapping, checking retrieved material against candidate diagnoses and extracting useful passages from long documents. We use Qwen3-8B for these tasks. Qwen3-Embedding-8B produces retrieval embeddings and does not use chat prompt templates.
+
+Templates are reproduced verbatim from `genesis/prompts.py`. Runtime inputs are assembled by the calling modules. Final diagnosis is assembled from the last completed cycle and has no separate prompt.
+
+## Initial differential diagnosis
+
+**Model role:** GENESIS-R1
 
 **Template:** `initial_differential`
 
@@ -33,9 +39,9 @@ Output one JSON object and nothing else — no preamble, no commentary, no code 
 ```
 ````
 
-## P2 Revised differential
+## Revised differential diagnosis
 
-**Role:** Reasoning model
+**Model role:** GENESIS-R1
 
 **Template:** `revised_differential`
 
@@ -51,9 +57,9 @@ Candidates may be retained, removed, introduced or reranked. Weigh the audit fin
 Return the same JSON schema as the initial differential.
 ````
 
-## P3 Multi-expert consensus
+## Multi-expert consensus
 
-**Role:** Working model
+**Model role:** GENESIS-R1
 
 **Template:** `consensus_synthesis`
 
@@ -78,9 +84,9 @@ Output one JSON object and nothing else. `stance` is one of `"supports"`, `"refu
 ```
 ````
 
-## P4 Knowledge retrieval queries
+## Dynamic knowledge retrieval and deduction
 
-**Role:** Working model
+**Model role:** GENESIS-R1 — query planning
 
 **Template:** `knowledge_queries`
 
@@ -104,32 +110,49 @@ Output one JSON object and nothing else.
 ```
 ````
 
-## P5 Same disease entity assessment
+## Historical-case analogy
 
-**Role:** Working model
+**Model role:** GENESIS-R1
 
-**Template:** `analogy_same_entity`
+**Template:** `analogy_synthesis`
 
 ````text
-You compare a retrieved clinical case against one candidate diagnosis. Answer whether the retrieved case represents the SAME disease entity as the candidate.
+You perform Historical-case analogy for a differential diagnosis.
 
-Different wording, language, synonyms, abbreviations or alternative standard names still count as the same entity. A recognised subtype of the candidate counts as the same entity; a broader parent category does not.
+Read the original clinical case, the current candidates, the retrieved historical cases and the auxiliary same-entity checks. Compare the patient's presentation with the retrieved cases: overlapping findings, important differences, chronology and unresolved questions. A same-entity match identifies a disease label; it does not establish that the patient has that disease.
 
-State only what the retrieved record says. Do not introduce disease names, phenotypes, genes or numbers that are absent from it.
+For each candidate, assess whether the historical cases support it, argue against it or leave it unresolved. Explain the clinically relevant similarities and differences in the summary. Missing information is not a negative finding. Findings in a historical case must not be attributed to the current patient.
 
-Output one JSON object and nothing else. `same_entity` must be the JSON literal `true` or `false`, not a string.
+You may propose an alternative outside the current differential when a retrieved case documents that diagnosis and the patient's presentation supports considering it. A case that does not match an existing candidate may still support an alternative. Do not invent diagnoses, clinical findings or source details absent from the supplied material.
+
+Use the exact candidate names supplied. For every assessment or alternative, list the exact source labels of the retrieved cases used. Use only supplied sources; these labels retain the database name and available case identifier or description. Do not invent identifiers, similarity scores, probabilities or case counts. Return empty lists when no retrieved case supports an assessment or alternative.
+
+Output one JSON object and nothing else. `stance` is one of `"supports"`, `"refutes"`, `"neutral"`. This is the case-analogy assessment; Evidence fusion determines the final ranking.
 
 ```json
 {
-  "same_entity": false,
-  "justification": "one sentence"
+  "assessments": [
+    {
+      "candidate": "...",
+      "stance": "supports",
+      "summary": "Clinical similarities, differences and remaining uncertainty.",
+      "sources": ["exact source label from the retrieved cases"]
+    }
+  ],
+  "alternatives": [
+    {
+      "name": "...",
+      "rationale": "Why the retrieved case and patient presentation support considering this diagnosis.",
+      "sources": ["exact source label from the retrieved cases"]
+    }
+  ]
 }
 ```
 ````
 
-## P6 Evidence fusion
+## Evidence fusion
 
-**Role:** Working model
+**Model role:** GENESIS-R1
 
 **Template:** `evidence_fusion`
 
@@ -193,9 +216,9 @@ Output one JSON object and nothing else — no preamble, no commentary, no code 
 - `reflection_needed`: true when the evidence cannot be reconciled with the case, or is too thin to separate the leading candidates.
 ````
 
-## P7 Evidence audit
+## Evidence-consistency audit
 
-**Role:** Working model
+**Model role:** GENESIS-R1
 
 **Template:** `audit_findings`
 
@@ -224,9 +247,9 @@ Output one JSON object and nothing else. Any of the three lists may be empty.
 ```
 ````
 
-## P8 Phenotype extraction
+## Phenotype extraction
 
-**Role:** Tool layer reference
+**Model role:** Auxiliary model (Qwen3-8B)
 
 **Template:** `phenotype_extraction`
 
@@ -246,18 +269,41 @@ Output one JSON object and nothing else. `present` must be the JSON literal `tru
 ```
 ````
 
-## P9 Record condensation
+## Retrieved-case diagnosis matching
 
-**Role:** Tool layer reference
+**Model role:** Auxiliary model (Qwen3-8B) — within Historical-case analogy
+
+**Template:** `analogy_same_entity`
+
+````text
+You compare a retrieved clinical case against one candidate diagnosis. Answer whether the retrieved case represents the SAME disease entity as the candidate.
+
+Different wording, language, synonyms, abbreviations or alternative standard names still count as the same entity. A recognised subtype of the candidate counts as the same entity; a broader parent category does not.
+
+State only what the retrieved record says. Do not introduce disease names, phenotypes, genes or numbers that are absent from it.
+
+Output one JSON object and nothing else. `same_entity` must be the JSON literal `true` or `false`, not a string.
+
+```json
+{
+  "same_entity": false,
+  "justification": "one sentence"
+}
+```
+````
+
+## Relevant passage extraction
+
+**Model role:** Auxiliary model (Qwen3-8B)
 
 **Template:** `record_condensation`
 
 ````text
-Condense this retrieved record with respect to one candidate diagnosis.
+Extract the passages in this retrieved record that are relevant to one candidate diagnosis. Keep the original wording of useful passages where possible, including qualifications and negative findings. Join the selected passages in the summary field.
 
 State ONLY what the text below says. Do not add disease names, phenotypes, genes, HPO/OMIM/ORPHA identifiers, numbers or study conclusions that are not present in the input. If the record contains no phenotype or disease information relevant to the candidate, say so explicitly.
 
-Then state whether the record supports, refutes or is neutral towards the candidate.
+Then state whether the record supports, refutes or is neutral towards the candidate. This is an evidence-processing task, not a patient diagnosis: do not rank candidates or infer that a finding in the retrieved record is present in the patient.
 
 Output one JSON object and nothing else. `stance` is one of `"supports"`, `"refutes"`, `"neutral"`.
 

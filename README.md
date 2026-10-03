@@ -1,9 +1,12 @@
 # GENESIS
 
-An evidence-auditing multi-agent diagnostic workflow: one model proposes a
-differential, three agents examine it from independent angles, a fusion step
-ranks the candidates against what was retrieved, and an audit decides whether
-another round is warranted.
+English | [简体中文](README.zh-CN.md)
+
+GENESIS is the complete multi-agent diagnostic system. GENESIS-R1 is its specialised medical diagnostic reasoning model, trained with medical knowledge, diagnostic chains of thought and diagnosis-task reinforcement learning.
+
+GENESIS-R1 proposes a differential, three evidence pathways examine it from
+complementary perspectives, Evidence fusion ranks the candidates, and an
+Evidence-consistency audit determines whether revision is needed.
 
 This repository is the orchestration layer. It depends only on the Python
 standard library, and connects to your own models and retrieval indices through
@@ -11,45 +14,35 @@ seven small interfaces.
 
 ## How it runs
 
-```text
-                       free-text case
-                             │
-                             ▼
-              ┌──────────────────────────────┐
-              │ 1. propose a differential    │   K candidates, each with
-              │                              │   supporting / contradictory
-              └──────────────┬───────────────┘   findings, open questions,
-                             │                   rationale
-             ┌───────────────┼───────────────┐
-             ▼               ▼               ▼   2. three pathways, in parallel
-        2.1 multi-expert  2.2 knowledge  2.3 similar
-            consensus         reasoning      cases
-             │               │               │
-             └───────────────┼───────────────┘
-                             ▼
-              ┌──────────────────────────────┐
-              │ 3. fusion → ranked answer    │   the differential the caller
-              └──────────────┬───────────────┘   receives
-                             │
-                    settled? │
-                   ┌─────────┴─────────┐
-                  yes                 no ─── up to 3 rounds
-                   │                   │
-                   ▼                   ▼
-            final answer      ┌──────────────────────────────┐
-                              │ 4. audit → what is missing   │
-                              └──────────────┬───────────────┘
-                                             ▼
-                              ┌──────────────────────────────┐
-                              │ 5. the proposing model sees   │
-                              │    the evidence and reworks   │
-                              │    the candidate set          │
-                              └──────────────┬───────────────┘
-                                             │
-                                   back to 2 ┘
+```mermaid
+flowchart TD
+    I[Clinical input] --> D[Initial differential diagnosis]
+    D --> C[Multi-expert consensus]
+    D --> K[Dynamic knowledge retrieval and deduction]
+    D --> A["Historical-case analogy<br/>GENESIS-R1 assessment"]
+    C --> F[Evidence fusion]
+    K --> F
+    A --> F
+    F --> Q{Further review required?}
+    Q -->|No| O[Final diagnosis]
+    Q -->|Yes| E[Evidence-consistency audit]
+    E --> R{Revision required and budget remains?}
+    R -->|No| O
+    R -->|Yes| V[Revised differential diagnosis]
+    V --> C
+    V --> K
+    V --> A
 ```
 
-**1. Propose.** The reasoning model reads the case and returns a ranked
+GENESIS-R1 handles diagnostic reasoning, evidence interpretation, fusion, audit
+and revision. A smaller auxiliary language model handles simpler tasks quickly:
+extracting clinical findings for HPO mapping, checking retrieved material against
+candidate diagnoses and extracting useful passages from long documents. We use
+Qwen3-8B for these tasks. Qwen3-Embedding-8B is the separate embedding model used
+for vector retrieval.
+
+
+**1. Initial differential diagnosis.** The reasoning model reads the case and returns a ranked
 differential. Each candidate carries the findings that support it, the findings
 that contradict it, the questions left open, and its rationale.
 
@@ -58,31 +51,39 @@ across independent diagnostic methods, and what those methods propose that the
 differential omits. Agreement — presence and relative position in each ranked
 list — is computed in code; the model is asked only to interpret it.
 
-**2.2 Knowledge reasoning.** Queries the knowledge indices per candidate along
+**2.2 Dynamic knowledge retrieval and deduction.** Queries the knowledge indices per candidate along
 three axes: defining features, contradictory findings, mechanism. Retrieved
 records are attached as evidence, passed through as retrieved by default.
 
-**2.3 Similar cases.** Retrieves historical cases by phenotype set, narrative and
-candidate name, keeping only those judged to be the same disease entity.
+**2.3 Historical-case analogy.** Retrieves historical cases using phenotype terms,
+clinical narratives or candidate disease names. The auxiliary model checks
+whether a retrieved case’s reported diagnosis matches a candidate diagnosis.
+GENESIS-R1 compares the current patient’s symptoms, findings and disease course
+with the retrieved cases, explaining which findings support or argue against
+each candidate. It can also suggest other diagnoses documented in those cases
+when the patient’s findings justify considering them. The comparison and cited
+case records are passed to Evidence fusion.
 
-**3. Fusion.** Ranks the candidates against everything retrieved, and produces
+**3. Evidence fusion.** Ranks the candidates against everything retrieved, and produces
 the answer the caller receives. Runs every round, so the differential returned
 always reflects the evidence rather than only the initial proposal.
 
-**4. Audit.** Runs when fusion could not settle the case. Classifies each
+**4. Evidence-consistency audit.** Runs when fusion could not settle the case. Classifies each
 candidate as *consensus*, *contested* or *emerged*, then names what is missing:
 unsupported claims, conflicting findings, evidence gaps, proposed alternatives.
 
-**5. Revise.** The same model that proposed the differential is given the case
+**5. Revised differential diagnosis.** The same model that proposed the differential is given the case
 again, its own previous candidates, the records each of them accumulated across
 the three pathways, and the audit report. It may keep, drop, reorder or introduce
 candidates. Whatever it introduces goes back through retrieval at greater depth
 — three queries per candidate instead of one, ten records per source instead of
-three — while evidence already collected remains available. With
-`max_rounds=2`, the workflow performs an initial cycle and at most two revisions.
+three — while evidence already collected remains available. The default
+`max_rounds=3` permits one initial cycle and at most three revisions, for up to
+four evidence-and-fusion cycles. `max_rounds=2` permits at most three total cycles.
 
-Every stage receives the full case text, with retrieved evidence added alongside
-it.
+GENESIS-R1 receives the full case text for diagnosis, query planning, case analogy, fusion,
+audit and revision. Auxiliary passage extraction receives the candidate and
+retrieved record. Final diagnosis is assembled from the last completed cycle.
 
 ## Methods and model documentation
 
@@ -92,7 +93,7 @@ it.
 ## Install
 
 ```bash
-python3 -m pip install -e .        # nothing to fetch; stdlib only
+python3 -m pip install -e .        # no runtime dependencies
 ```
 
 Python 3.10+.
@@ -109,7 +110,9 @@ Then point it at a model:
 
 ```bash
 python3 examples/run_dataset.py --base-url http://localhost:8000/v1 \
-                                --model your-model
+                                --model GENESIS-R1 \
+                                --auxiliary-base-url http://localhost:8001/v1 \
+                                --auxiliary-model Qwen3-8B
 ```
 
 In code:
@@ -119,25 +122,31 @@ import asyncio
 from genesis import Config, Models, Tools, diagnose
 from genesis.llm.openai_compat import OpenAIChat
 
-# reasoner: proposes the differential and revises it after each audit.
-# worker:   drives the three agents' reasoning, the fusion and the audit.
-# They may be the same object; passing only `reasoner` uses it for both.
-reasoner = OpenAIChat("http://localhost:8000/v1", "your-reasoning-model")
-worker = OpenAIChat("http://localhost:8001/v1", "your-worker-model",
-                    thinking=False)
+from genesis.tools import ModelPhenotypeExtractor, ModelEvidenceSummarizer
+
+reasoner = OpenAIChat("http://localhost:8000/v1", "GENESIS-R1")
+auxiliary = OpenAIChat("http://localhost:8001/v1", "Qwen3-8B", thinking=False)
 
 result = asyncio.run(diagnose(
     case_text,
-    models=Models(reasoner=reasoner, worker=worker),
-    tools=Tools(...),               # see Interfaces
-    config=Config(k=5, max_rounds=2),
+    models=Models(reasoner=reasoner, auxiliary=auxiliary),
+    tools=Tools(
+        phenotype_extractor=ModelPhenotypeExtractor(auxiliary),
+        summarizer=ModelEvidenceSummarizer(auxiliary),
+        # Add expert_methods, knowledge_sources and case_indices here.
+    ),
+    config=Config(k=5, max_rounds=3),
 ))
 
 result.top_k              # ranked differential
 result.consistency_met    # did it settle?
 result.to_dict()          # the answer in the q1_diagnoses schema
 result.cycles             # candidates, evidence and audit for every round
+# For an analogy report in result.cycles[i].reports:
+# report.synthesis contains the parsed GENESIS-R1 case-analogy output.
 ```
+
+Network access and individual source switches are configured separately; see [Inference](docs/inference.md#network-access-and-source-configuration) and the [external tool inventory](docs/resources.md#external-retrieval-tools-and-services).
 
 ## Interfaces
 
@@ -155,11 +164,13 @@ literature index, a case corpus, a single JSON file:
 | `CaseIndex`          | historical-case retrieval                                    |
 | `EvidenceSummarizer` | optional: condense a record instead of passing it through    |
 
-Every one is optional except `ChatModel`. A pathway activates when its tool is
-present, so you can start with one knowledge index and add the rest later.
+Every tool is optional. Knowledge retrieval activates when a knowledge source
+is configured; a summarizer is not required. Without a summarizer, original
+records are retained with a neutral stance. See [Inference](docs/inference.md)
+for complete model roles, auxiliary configuration and the minimal setup.
 
-`examples/run_dataset.py` implements four of them against plain JSON files in
-about eighty lines, which is the shortest way to see what each has to return.
+`examples/run_dataset.py` implements four of them against plain JSON files,
+showing the inputs and outputs expected by each protocol.
 `genesis/llm/openai_compat.py` is a worked `ChatModel` for any
 OpenAI-compatible server: vLLM, SGLang, Ollama, most gateways.
 

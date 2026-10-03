@@ -92,21 +92,20 @@ class Stance(str, Enum):
 class Evidence:
     """One retrieved record, bound to the candidate it speaks to.
 
-    `content` is the retrieved text as it came back — abstract, ontology entry,
-    case narrative. It is what downstream prompts read.
+    `content` is the retrieved text or relevant passages selected by the
+    configured adapter. It is what downstream prompts read; `raw` retains the
+    source payload when supplied by the adapter.
 
-    `summary` is an optional short gloss. It exists for display and for the rare
-    case where a record is far too long to pass on, *not* as the normal channel:
-    a condensed summary is strictly less information than the record, and every
-    condensation step is both a latency cost and a place for the model to invent
-    a disease name that was not in the source. Prefer passing `content`.
+    `summary` holds an optional gloss or the agent's assessment of the record.
+    Downstream reasoning receives it separately from `content`, so an assessment
+    is kept distinct from the retrieved text or selected passages.
     """
 
     candidate_key: str
     kind: EvidenceKind
     stance: Stance
     source: str                          # human-readable provenance
-    content: str = ""                    # retrieved text, verbatim
+    content: str = ""                    # retrieved text or selected passages
     summary: str = ""                    # optional short gloss
     source_id: str | None = None         # PMID / OMIM id / case id, when known
     score: float | None = None           # retrieval or cross-encoder score
@@ -129,6 +128,8 @@ class AgentReport:
     notes: str = ""
     failed: bool = False                 # agent errored; audit must know
     error: str | None = None
+    # Parsed model output, retained separately from the original evidence.
+    synthesis: dict[str, Any] | None = None
 
 
 @dataclass
@@ -263,7 +264,10 @@ class DiagnosisResult:
                 ""
                 if self.consistency_met
                 else (
-                    "; ".join((last.evidence_gaps + last.conflicting_findings)[:3])
+                    (
+                        "; ".join((last.evidence_gaps + last.conflicting_findings)[:3])
+                        or last.reasoning
+                    )
                     if last
                     else ""
                 )

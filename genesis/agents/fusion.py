@@ -1,4 +1,4 @@
-"""Fusion agent — turns the gathered evidence into the answer.
+"""Evidence fusion — turns the gathered evidence into the answer.
 
 Runs after the three evidence pathways report and before the consistency audit,
 on every round:
@@ -74,7 +74,9 @@ async def run(
                             "pathway": e.kind.value,
                             "stance": e.stance.value,
                             "source": e.source,
+                            "source_id": e.source_id,
                             "record": e.text(),
+                            "summary": e.summary,
                         }
                         for e in by_cand.get(c.key(), [])
                     ],
@@ -82,7 +84,12 @@ async def run(
                 for c in sorted(candidates, key=lambda c: c.rank)
             ],
             "alternatives_proposed_by_agents": [
-                {"name": c.name, "rationale": c.rationale}
+                {"name": c.name, "rationale": c.rationale,
+                 "evidence": [{
+                     "citation": marker_of[id(e)], "pathway": e.kind.value,
+                     "stance": e.stance.value, "source": e.source,
+                     "source_id": e.source_id, "record": e.text(), "summary": e.summary,
+                 } for e in by_cand.get(c.key(), [])]}
                 for c in (proposed or [])
             ],
             "candidates_requested": k,

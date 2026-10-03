@@ -7,7 +7,7 @@ three diagnostic axes and attaches what comes back as evidence:
     contradictory_findings  findings that would argue against it
     mechanism               its pathophysiological mechanism
 
-Queries are written by the working model from the case, the candidate and the
+Queries are written by GENESIS-R1 from the case, the candidate and the
 patient's findings — retrieval is per candidate rather than per symptom, so that
 what returns can discriminate between candidates rather than describing one
 symptom in general.
@@ -72,8 +72,8 @@ async def run(
     findings that never became ontology terms — laboratory values, imaging
     detail, time course — which are often what discriminates two candidates.
 
-    `summarizer=None` passes retrieved records through verbatim, which is the
-    preferred mode: a condensed record carries strictly less than the record.
+    `summarizer=None` passes retrieved records through. A configured summarizer
+    selects relevant passages for downstream reasoning.
     """
     if not sources:
         return AgentReport(
@@ -145,14 +145,21 @@ async def run(
                         cand, rec, EvidenceKind.KNOWLEDGE, src.name
                     )
                 )
-                sum_meta.append((cand, axis, src))
+                sum_meta.append((cand, axis, src, rec))
 
     if sum_tasks:
-        for (cand, axis, src), ev in zip(
+        for (cand, axis, src, rec), ev in zip(
             sum_meta,
             await asyncio.gather(*sum_tasks, return_exceptions=True),
         ):
             if isinstance(ev, BaseException) or ev is None:
+                failures.append(f"{src.name}: record processing unavailable; retained original")
+                evidence.append(Evidence(
+                    candidate_key=cand.key(), kind=EvidenceKind.KNOWLEDGE,
+                    stance=Stance.NEUTRAL, source=f"{src.name} ({axis})",
+                    content=_render(rec), source_id=_rec_id(rec),
+                    score=_rec_score(rec), raw=rec,
+                ))
                 continue
             ev.candidate_key = cand.key()
             ev.kind = EvidenceKind.KNOWLEDGE

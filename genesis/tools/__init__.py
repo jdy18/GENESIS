@@ -7,6 +7,8 @@ from .base import (
     KnowledgeSource,
     PhenotypeExtractor,
 )
+from .llm import ModelEvidenceSummarizer, ModelPhenotypeExtractor
+from ..network import ConfiguredTool
 
 __all__ = [
     "PhenotypeExtractor",
@@ -15,4 +17,7 @@ __all__ = [
     "KnowledgeSource",
     "CaseIndex",
     "EvidenceSummarizer",
+    "ModelEvidenceSummarizer",
+    "ModelPhenotypeExtractor",
+    "ConfiguredTool",
 ]

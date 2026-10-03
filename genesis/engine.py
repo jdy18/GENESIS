@@ -22,7 +22,7 @@ async def propose(
     k: int = 5,
     max_tokens: int = 4096,
 ) -> list[Candidate]:
-    """Initial differential — the single-model baseline.
+    """Initial differential diagnosis — the single-model baseline.
 
     Sees the case and the extracted findings, nothing else, so what it returns is
     the floor the rest of the workflow has to beat.
@@ -52,7 +52,7 @@ async def revise(
     k: int = 5,
     max_tokens: int = 4096,
 ) -> list[Candidate]:
-    """Revised differential: the same case, plus everything the agents gathered.
+    """Revised differential diagnosis: the same case, plus everything the agents gathered.
 
     This is the step where the model that proposed the differential gets to see
     what the evidence pathways found. It receives the retrieved records
@@ -82,6 +82,7 @@ async def revise(
                             "stance": e.stance.value,
                             "source": e.source,
                             "record": e.text(),
+                            "summary": e.summary,
                         }
                         for e in by_cand.get(c.key(), [])
                     ],

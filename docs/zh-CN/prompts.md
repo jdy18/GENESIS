@@ -1,25 +1,20 @@
-"""Every prompt the workflow uses, in one file.
+# GENESIS Prompt 参考
 
-Collected here rather than left beside the code that sends them, so that what the
-system asks the models is readable in one place. Each prompt is paired with the
-record shape it must return; those shapes are parsed in the module that owns the
-call, so changing wording here is safe but changing the JSON keys is not.
+[English](../prompts.md) | 简体中文
 
-Conventions that apply throughout:
+GENESIS 是完整的多智能体诊断系统。GENESIS-R1 是 GENESIS 中使用的、经过训练的医学推理模型。
 
-  * No disease names anywhere. A prompt that lists examples teaches the model to
-    recognise those examples.
-  * Where a model summarizes retrieved text, it is told to state only what the
-    record says. Fabricated supporting evidence is worse than none, because the
-    audit cannot tell it from the real thing.
-  * Agreement counting, candidate classification and the consistency verdict are
-    computed in code and handed to the model as facts. The model interprets them
-    and never recomputes them, so control flow does not depend on wording.
-"""
+GENESIS-R1 承担整个工作流中的诊断推理，包括独立比较当前患者与检索到的历史病例。较小的辅助语言模型用于快速处理简单任务：提取用于 HPO 映射的临床表现、检查检索材料与候选诊断的对应关系，以及提取长文档中的有效片段。这些任务采用 Qwen3-8B。Qwen3-Embedding-8B 生成检索嵌入向量，不使用对话 prompt 模板。
 
-# ── GENESIS-R1: Initial and revised differential diagnosis ──
+模板逐字转载自 `genesis/prompts.py`。为与代码保持一致，以下模板正文保留英文原文，仅翻译说明。运行时输入由调用模块组装。Final diagnosis 由最后完成的一轮结果组装而成，没有单独的 prompt。
 
-INITIAL_DIFFERENTIAL = """\
+## Initial differential diagnosis（初步鉴别诊断）
+
+**模型职责：** GENESIS-R1
+
+**模板：** `initial_differential`
+
+````text
 You are a diagnostician. Given a patient's clinical presentation, produce a ranked differential diagnosis.
 
 Consider common, rare and atypical explanations. A rare disease does not present labelled as rare — it presents as common symptoms in an unusual combination or trajectory. Do not restrict the differential to rare diseases, and do not omit one because it is rare.
@@ -42,9 +37,15 @@ Output one JSON object and nothing else — no preamble, no commentary, no code 
   ]
 }
 ```
-"""
+````
 
-REVISED_DIFFERENTIAL = """\
+## Revised differential diagnosis（修订鉴别诊断）
+
+**模型职责：** GENESIS-R1
+
+**模板：** `revised_differential`
+
+````text
 You are revising a differential diagnosis after an evidence audit.
 
 You are given the original case, your previous differential with the records each candidate accumulated from three independent evidence pathways, and an audit report listing unsupported claims, conflicting findings, unresolved evidence gaps and alternative diagnoses the agents proposed.
@@ -54,11 +55,15 @@ Read the records themselves, not only the audit's account of them. A candidate w
 Candidates may be retained, removed, introduced or reranked. Weigh the audit findings against the case: an alternative supported by several independent pathways deserves promotion, and a candidate whose rationale the audit found unsupported should fall or be dropped. Do not simply keep your previous order, and do not adopt an alternative merely because it was proposed.
 
 Return the same JSON schema as the initial differential.
-"""
+````
 
-# ── GENESIS-R1: Multi-expert consensus and knowledge query planning ──
+## Multi-expert consensus（多专家共识）
 
-CONSENSUS_SYNTHESIS = """\
+**模型职责：** GENESIS-R1
+
+**模板：** `consensus_synthesis`
+
+````text
 You are a diagnostic evidence auditor. Several independent diagnostic methods have each ranked candidate diseases for one patient. You are given their rankings and the agreement already computed from them.
 
 Your task is to explain, per candidate, what the pattern of agreement means diagnostically — not to recompute it. Treat the rankings as votes to be interpreted, not as hints to restate.
@@ -77,9 +82,15 @@ Output one JSON object and nothing else. `stance` is one of `"supports"`, `"refu
   ]
 }
 ```
-"""
+````
 
-KNOWLEDGE_QUERIES = """\
+## Dynamic knowledge retrieval and deduction（动态知识检索与推断）
+
+**模型职责：** GENESIS-R1 — 查询规划
+
+**模板：** `knowledge_queries`
+
+````text
 You write retrieval queries for a clinical knowledge index. For the given candidate disease and patient findings, write one short keyword query per requested axis:
 
   defining_features      — findings that would confirm this disease
@@ -97,29 +108,15 @@ Output one JSON object and nothing else.
   "mechanism": "..."
 }
 ```
-"""
+````
 
-# Auxiliary model: retrieved-case diagnosis matching within Historical-case analogy.
-ANALOGY_SAME_ENTITY = """\
-You compare a retrieved clinical case against one candidate diagnosis. Answer whether the retrieved case represents the SAME disease entity as the candidate.
+## Historical-case analogy（历史病例类比）
 
-Different wording, language, synonyms, abbreviations or alternative standard names still count as the same entity. A recognised subtype of the candidate counts as the same entity; a broader parent category does not.
+**模型职责：** GENESIS-R1
 
-State only what the retrieved record says. Do not introduce disease names, phenotypes, genes or numbers that are absent from it.
+**模板：** `analogy_synthesis`
 
-Output one JSON object and nothing else. `same_entity` must be the JSON literal `true` or `false`, not a string.
-
-```json
-{
-  "same_entity": false,
-  "justification": "one sentence"
-}
-```
-"""
-
-# ── GENESIS-R1: Historical-case analogy ──
-
-ANALOGY_SYNTHESIS = """\
+````text
 You perform Historical-case analogy for a differential diagnosis.
 
 Read the original clinical case, the current candidates, the retrieved historical cases and the auxiliary same-entity checks. Compare the patient's presentation with the retrieved cases: overlapping findings, important differences, chronology and unresolved questions. A same-entity match identifies a disease label; it does not establish that the patient has that disease.
@@ -151,11 +148,15 @@ Output one JSON object and nothing else. `stance` is one of `"supports"`, `"refu
   ]
 }
 ```
-"""
+````
 
-# ── GENESIS-R1: Evidence fusion ──
+## Evidence fusion（证据融合）
 
-EVIDENCE_FUSION = """\
+**模型职责：** GENESIS-R1
+
+**模板：** `evidence_fusion`
+
+````text
 You are a diagnostic reasoning engine producing a final ranked differential.
 
 ## Sources, in order of authority
@@ -213,11 +214,15 @@ Output one JSON object and nothing else — no preamble, no commentary, no code 
 - `exams`: what to do next for this candidate. Prefer non-invasive and low-cost tests for common diseases; for rare ones, say which red flags to look for. Flag contraindications and alternatives for special populations.
 
 - `reflection_needed`: true when the evidence cannot be reconciled with the case, or is too thin to separate the leading candidates.
-"""
+````
 
-# ── GENESIS-R1: Evidence-consistency audit ──
+## Evidence-consistency audit（证据一致性审查）
 
-AUDIT_FINDINGS = """\
+**模型职责：** GENESIS-R1
+
+**模板：** `audit_findings`
+
+````text
 You are auditing the evidence gathered for a differential diagnosis.
 
 You are given the working differential, the evidence attached to each candidate from three independent pathways, and a classification already computed from that evidence. Do not recompute the classification.
@@ -240,12 +245,15 @@ Output one JSON object and nothing else. Any of the three lists may be empty.
   "reasoning": "..."
 }
 ```
-"""
+````
 
-# ── Auxiliary model: phenotype extraction and relevant passage extraction ──
-# Used by the optional model-backed adapters in tools/llm.py.
+## 表型提取
 
-PHENOTYPE_EXTRACTION = """\
+**模型职责：** 辅助模型（Qwen3-8B）
+
+**模板：** `phenotype_extraction`
+
+````text
 Extract the clinical findings from this case as a list.
 
 Preserve pertinent negatives: a finding the record explicitly denies is diagnostically informative and must be returned with present=false rather than omitted. Preserve temporal information in the finding name where the record gives it. Do not infer findings the record does not state.
@@ -259,9 +267,38 @@ Output one JSON object and nothing else. `present` must be the JSON literal `tru
   ]
 }
 ```
-"""
+````
 
-RECORD_CONDENSATION = """\
+## 检索病例诊断匹配
+
+**模型职责：** 辅助模型（Qwen3-8B）— 用于 Historical-case analogy
+
+**模板：** `analogy_same_entity`
+
+````text
+You compare a retrieved clinical case against one candidate diagnosis. Answer whether the retrieved case represents the SAME disease entity as the candidate.
+
+Different wording, language, synonyms, abbreviations or alternative standard names still count as the same entity. A recognised subtype of the candidate counts as the same entity; a broader parent category does not.
+
+State only what the retrieved record says. Do not introduce disease names, phenotypes, genes or numbers that are absent from it.
+
+Output one JSON object and nothing else. `same_entity` must be the JSON literal `true` or `false`, not a string.
+
+```json
+{
+  "same_entity": false,
+  "justification": "one sentence"
+}
+```
+````
+
+## 相关片段提取
+
+**模型职责：** 辅助模型（Qwen3-8B）
+
+**模板：** `record_condensation`
+
+````text
 Extract the passages in this retrieved record that are relevant to one candidate diagnosis. Keep the original wording of useful passages where possible, including qualifications and negative findings. Join the selected passages in the summary field.
 
 State ONLY what the text below says. Do not add disease names, phenotypes, genes, HPO/OMIM/ORPHA identifiers, numbers or study conclusions that are not present in the input. If the record contains no phenotype or disease information relevant to the candidate, say so explicitly.
@@ -273,17 +310,4 @@ Output one JSON object and nothing else. `stance` is one of `"supports"`, `"refu
 ```json
 {"stance": "neutral", "summary": "..."}
 ```
-"""
-
-ALL = {
-    "initial_differential": INITIAL_DIFFERENTIAL,
-    "revised_differential": REVISED_DIFFERENTIAL,
-    "consensus_synthesis": CONSENSUS_SYNTHESIS,
-    "knowledge_queries": KNOWLEDGE_QUERIES,
-    "analogy_same_entity": ANALOGY_SAME_ENTITY,
-    "analogy_synthesis": ANALOGY_SYNTHESIS,
-    "evidence_fusion": EVIDENCE_FUSION,
-    "audit_findings": AUDIT_FINDINGS,
-    "phenotype_extraction": PHENOTYPE_EXTRACTION,
-    "record_condensation": RECORD_CONDENSATION,
-}
+````

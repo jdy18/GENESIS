@@ -35,9 +35,13 @@ class OpenAIChat:
         api_key:  sent as ``Authorization: Bearer ...`` when set.
         max_concurrency: in-flight request cap for this endpoint.
         thinking: pass ``False`` to disable reasoning mode on servers that
-                  support the ``chat_template_kwargs`` switch. Worth turning off
-                  for the short structured calls (same-entity verdicts, query
-                  writing) where reasoning tokens only consume budget.
+                  support the ``chat_template_kwargs`` switch. Auxiliary models
+                  can use this for short extraction and record-matching tasks.
+                  ``None`` retains the server's default mode.
+        requires_external_access: set ``False`` for a locally hosted endpoint
+                  whose requests stay within the deployment network. Public
+                  gateways, including those reached through a local proxy,
+                  require external access. The default is ``True``.
     """
 
     def __init__(
@@ -49,9 +53,11 @@ class OpenAIChat:
         max_concurrency: int = 16,
         timeout: float = 180.0,
         thinking: bool | None = None,
+        requires_external_access: bool = True,
     ) -> None:
         self.base_url = base_url.rstrip("/")
         self.model = model
+        self.requires_external_access = requires_external_access
         self._key = api_key
         self._sem = asyncio.Semaphore(max_concurrency)
         self._timeout = timeout

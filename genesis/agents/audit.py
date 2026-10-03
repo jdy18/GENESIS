@@ -150,6 +150,7 @@ async def audit(
     per_candidate = {
         c.key(): [
             f"[{e.kind.value} | {e.stance.value} | {e.source}]\n{e.text()}"
+            + (f"\nAgent assessment: {e.summary}" if e.summary else "")
             for e in by_cand.get(c.key(), [])
         ]
         for c in candidates
