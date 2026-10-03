@@ -10,16 +10,7 @@ GENESIS-R1 is a specialised medical diagnostic reasoning model trained through s
 
 The model is initialised from Qwen3-14B, an approximately 14-billion-parameter language model.
 
-```mermaid
-flowchart LR
-    B[Qwen3-14B] --> G[General medicine SFT]
-    G --> R[Rare disease SFT]
-    R --> L[Diagnosis-task RL - DAPO]
-    L --> M[GENESIS-R1]
-    GK[GeneralKnowledge and GeneralCOT] --> G
-    RK[RareKnowledge and RareCOT] --> R
-    RL[GenesisRL] --> L
-```
+![GENESIS-R1 training: general medicine SFT, rare disease SFT and diagnosis-task RL with DAPO](figures/genesis-training.png)
 
 ## Inference model allocation
 

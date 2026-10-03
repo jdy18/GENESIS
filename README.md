@@ -14,25 +14,7 @@ seven small interfaces.
 
 ## How it runs
 
-```mermaid
-flowchart TD
-    I[Clinical input] --> D[Initial differential diagnosis]
-    D --> C[Multi-expert consensus]
-    D --> K[Dynamic knowledge retrieval and deduction]
-    D --> A["Historical-case analogy<br/>GENESIS-R1 assessment"]
-    C --> F[Evidence fusion]
-    K --> F
-    A --> F
-    F --> Q{Further review required?}
-    Q -->|No| O[Final diagnosis]
-    Q -->|Yes| E[Evidence-consistency audit]
-    E --> R{Revision required and budget remains?}
-    R -->|No| O
-    R -->|Yes| V[Revised differential diagnosis]
-    V --> C
-    V --> K
-    V --> A
-```
+![GENESIS diagnostic workflow with parallel evidence pathways and conditional audit and revision](docs/figures/genesis-workflow.png)
 
 GENESIS-R1 handles diagnostic reasoning, evidence interpretation, fusion, audit
 and revision. A smaller auxiliary language model handles simpler tasks quickly:

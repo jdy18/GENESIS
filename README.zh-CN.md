@@ -14,25 +14,7 @@ Evidence-consistency audit 判断是否需要修订。
 
 ## 运行流程
 
-```mermaid
-flowchart TD
-    I[Clinical input] --> D[Initial differential diagnosis]
-    D --> C[Multi-expert consensus]
-    D --> K[Dynamic knowledge retrieval and deduction]
-    D --> A["Historical-case analogy<br/>GENESIS-R1 assessment"]
-    C --> F[Evidence fusion]
-    K --> F
-    A --> F
-    F --> Q{Further review required?}
-    Q -->|No| O[Final diagnosis]
-    Q -->|Yes| E[Evidence-consistency audit]
-    E --> R{Revision required and budget remains?}
-    R -->|No| O
-    R -->|Yes| V[Revised differential diagnosis]
-    V --> C
-    V --> K
-    V --> A
-```
+![GENESIS 诊断工作流：并行证据路径、证据融合及按需执行的审查与修订](docs/figures/genesis-workflow.png)
 
 GENESIS-R1 负责诊断推理、证据解释、融合、审查和修订。
 较小的辅助语言模型用于快速处理简单任务：

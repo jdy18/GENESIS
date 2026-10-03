@@ -12,16 +12,7 @@ GENESIS-R1 是面向医学诊断的专业推理模型，通过医学知识和诊
 
 模型使用约 140 亿参数的 Qwen3-14B 初始化。
 
-```mermaid
-flowchart LR
-    B[Qwen3-14B] --> G[General medicine SFT]
-    G --> R[Rare disease SFT]
-    R --> L[Diagnosis-task RL - DAPO]
-    L --> M[GENESIS-R1]
-    GK[GeneralKnowledge and GeneralCOT] --> G
-    RK[RareKnowledge and RareCOT] --> R
-    RL[GenesisRL] --> L
-```
+![GENESIS-R1 训练流程：通用医学 SFT、罕见病 SFT 及采用 DAPO 的诊断任务强化学习](../figures/genesis-training.png)
 
 ### 推理阶段模型分工
 
